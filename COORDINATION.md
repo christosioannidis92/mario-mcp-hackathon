@@ -1,0 +1,62 @@
+# Team coordination
+
+Async Q&A board for cross-role coordination. Use this when you need a
+decision from another role that would otherwise block you.
+
+## How to use
+
+- Each open question lives under `## Open` with a stable ID (`Q-001`,
+  `Q-002`, …, monotonic).
+- Header is always `from PRn → PRm` so it's obvious who's asking and
+  who owns the answer.
+- The addressee edits `**Answer:**` inline and moves the whole block to
+  `## Resolved`. History stays in the file.
+- If a question turns into a decision, leave it in `## Resolved` — this
+  doubles as our decision log.
+
+## Open
+
+### Q-001 — from PR3 → PR1 — WebSocket message contract
+
+**Asked:** 2026-05-12 by PR3 (mcp-server)
+**Blocking:** PR3 can't replace its stub WebSocket bridge with a real
+client until this is locked.
+
+**Question:** what message shape do you want on the WebSocket between
+the MCP server and the browser game? Current PR3 stub assumes:
+
+- **server → browser**
+  - `{ "type": "loadLevel", "level": Level }`
+  - `{ "type": "pressButton", "button": "left|right|jump|run", "durationMs": number }`
+  - `{ "type": "reset" }`
+  - `{ "type": "requestState" }`
+- **browser → server**
+  - `{ "type": "ready" }`  (on connect; PR3 replies with a `loadLevel` snapshot)
+  - `{ "type": "state", "state": GameState }`  (in response to `requestState`)
+- **port:** `localhost:8787`
+
+OK as-is, or do you want different names / extra fields / different
+port?
+
+**Answer:** _pending_
+
+---
+
+### Q-002 — from PR3 → PR2 — shared types package?
+
+**Asked:** 2026-05-12 by PR3 (mcp-server)
+**Blocking:** no — PR3 has a local copy in `mcp-server/src/types.ts`.
+But duplication grows the longer we wait.
+
+**Question:** do you plan to extract `Level`, `TileType`, `EnemyType`,
+`GameState` into a shared workspace package (e.g., a top-level
+`shared/`), or should each role keep its own copy?
+
+If you ship `shared/` today PR3 will import from it. Otherwise PR3
+keeps the local copy and we accept the duplication.
+
+**Answer:** _pending_
+
+## Resolved
+
+_(none yet)_
