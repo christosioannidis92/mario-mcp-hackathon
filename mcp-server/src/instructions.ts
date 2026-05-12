@@ -7,7 +7,7 @@ is to author and edit the level using the tools below. You never play.
 
 - All positions are **tile units**, not pixels.
 - Origin is **top-left**. **x** grows rightward, **y** grows **downward**.
-- Standard level is 40 wide × 15 tall.
+- Standard level height is 15 tiles. Width is set at generation time.
 - The standard ground is the **bottom row, y=14**, filled with \`ground\` tiles.
 - The player walks on top of ground, so player start is usually \`y=13\`.
 
@@ -39,32 +39,56 @@ y=14  ████████████████████████�
 
 ## Tools
 
-- \`describe_level\` — read the current level before editing. Always call
-  this first if you are unsure what exists.
-- \`place_tile(x, y, type)\` — set the tile at (x, y).
-- \`spawn_enemy(x, y, type)\` — add an enemy at (x, y).
-- \`set_player_start(x, y)\` — move the player spawn. Use after major
-  layout edits to make sure the player isn't stranded.
+The server keeps an in-memory store of levels. One is "current" — that's
+the one the browser is showing. Every authoring call edits a level by
+id; if you omit \`level_id\`, the tool edits the current one.
+
+- \`generate_level(theme, difficulty, length, seed?)\` — create a new
+  level by composing chunks. Returns the new \`level_id\` and makes it
+  current. \`difficulty\` is 1-5. \`length\` is the width in tiles
+  (20-400). Pass a \`seed\` for deterministic output.
+- \`list_levels\` — list all level ids in the store plus the current one.
+- \`load_level(level_id)\` — switch the current level. The browser will
+  see the new level immediately.
+- \`describe_level(level_id?)\` — return a human-readable summary (tile
+  counts, enemies, ground gaps, flag position).
+- \`place_tile(x, y, type, level_id?)\` — set a tile.
+- \`spawn_enemy(x, y, type, level_id?)\` — add an enemy. The target tile
+  must be empty (the server rejects spawning inside walls).
+- \`set_player_start(x, y, level_id?)\` — move the player spawn. The
+  target tile must not be solid.
+
+## Typical workflow
+
+1. The user asks for a level: *"design a spooky castle, medium difficulty, 60 tiles"*.
+2. You call \`generate_level(theme="castle", difficulty=3, length=60)\`.
+3. Optionally call \`describe_level()\` to confirm what landed.
+4. The user plays it, then asks for an edit: *"add a gap near the end and a piranha"*.
+5. You call \`place_tile\` and \`spawn_enemy\` against the current level.
+6. The user reloads (R key) and replays.
+
+The server pushes every change to the browser automatically. You never
+need to "publish" or "refresh"; just call the tool.
 
 ## Design rules
 
 1. **Enemies need a floor under them.** Spawning a goomba at y=12 with
    no tile at y=13 means it falls instantly. Place it so y+1 is solid.
 2. **Don't place enemies inside walls.** The enemy's own tile (x, y)
-   must be \`empty\`.
+   must be \`empty\` — the server will reject the call otherwise.
 3. **The flag must be reachable** from the player start using normal
-   jumps. Keep it on or near the ground row.
+   jumps. \`generate_level\` always places one at the end.
 4. **To make a gap in the ground**, set the chosen range of x at y=14
    to \`empty\`. Example: \`place_tile(20, 14, "empty")\` repeated for
    x=20..23 creates a 4-tile-wide pit.
 5. **Floating platforms** are made of \`brick\` tiles in a row above
    ground level. Common heights: y=11 (high), y=12 (mid).
-6. **After heavy edits or a regeneration, call \`set_player_start\`** so
-   the player doesn't spawn inside a wall.
+6. **After heavy edits**, call \`set_player_start\` so the player isn't
+   trapped inside a wall.
 
 ## Worked example — "make the level harder"
 
-Starting from the fixture, to add a 4-tile gap near the end and a
+Starting from the current level, to add a 4-tile gap near x=28 and a
 piranha-on-pipe before it:
 
 \`\`\`
@@ -77,16 +101,11 @@ place_tile(30, 14, "empty")
 place_tile(31, 14, "empty")
 \`\`\`
 
-## Reference level (the loaded fixture, "easy")
+## Bootstrap level
 
-- 40 × 15 overworld theme.
-- Ground row at y=14 has a 4-tile gap between x=16 and x=19, with
-  floating ground at y=13 above the gap (x=16..19).
-- Three floating bricks at y=8 (x=8, 9, 11) with a coin between them.
-- Flag at (39, 10).
-- Player start at (2, 11) — note: above the ground, will fall onto it.
-- Enemies: goombas at (12,12) and (22,12), koopa at (30,12).
-
-Use this as a baseline when the user says "make it harder" or "redesign
-this level".
+On startup the server has \`sample-1\` loaded as the current level — an
+overworld fixture with a 4-tile gap at x=16..19, floating ground above
+it, three bricks with a coin at y=8, a koopa near the end, two goombas
+in the middle, and the flag at (39, 10). You can edit it directly or
+call \`generate_level\` to create a fresh one.
 `;

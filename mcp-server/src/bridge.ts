@@ -1,6 +1,6 @@
 import { WebSocketServer, WebSocket } from "ws";
 import type { Level } from "../../world/src/types.js";
-import { getLevel } from "./level-store.js";
+import { store } from "./store.js";
 
 type OutboundMessage = { type: "loadLevel"; level: Level };
 type InboundMessage = { type: "ready" } | { type: string };
@@ -35,7 +35,10 @@ export function startBridge(): void {
         return;
       }
       if (msg.type === "ready") {
-        ws.send(JSON.stringify({ type: "loadLevel", level: getLevel() }));
+        const level = store.current();
+        if (level) {
+          ws.send(JSON.stringify({ type: "loadLevel", level }));
+        }
       }
     });
 
