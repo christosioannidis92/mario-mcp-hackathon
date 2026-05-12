@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Tile Jumper</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #1a1d24;
+      --panel-2: #232733;
+      --border: #2d323f;
+      --text: #e6e8ec;
+      --muted: #8a90a0;
+      --accent: #6ea8ff;
+      --sky: #87ceeb;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    body {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      height: 100vh;
+    }
+    header {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+    }
+    header h1 { font-size: 18px; margin: 0; letter-spacing: 0.5px; }
+    header .tag { color: var(--muted); font-size: 12px; }
+    header .spacer { flex: 1; }
+    header .badge {
+      font-size: 11px; color: var(--muted);
+      padding: 3px 8px; border: 1px solid var(--border); border-radius: 999px;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr) minmax(280px, 1fr);
+      gap: 1px;
+      background: var(--border);
+      min-height: 0;
+    }
+    .pane {
+      background: var(--panel);
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+    }
+    .pane h2 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin: 0;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel-2);
+    }
+    .pane .body { flex: 1; min-height: 0; overflow: auto; }
+
+    /* Game pane */
+    #game-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      background:
+        linear-gradient(180deg, #1a1d24 0%, #11141a 100%);
+      height: 100%;
+    }
+    #game {
+      background: var(--sky);
+      max-width: 100%;
+      height: auto;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+
+    /* JSON pane */
+    #json {
+      margin: 0;
+      padding: 12px;
+      font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+      font-size: 11.5px;
+      line-height: 1.45;
+      white-space: pre;
+      color: #cfd3dc;
+    }
+
+    /* Chat pane */
+    #chat { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .msg {
+      padding: 8px 10px;
+      border-radius: 8px;
+      max-width: 95%;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .msg.user { align-self: flex-end; background: #2a3550; }
+    .msg.claude { align-self: flex-start; background: var(--panel-2); border: 1px solid var(--border); }
+    .msg .who { font-size: 10px; color: var(--muted); margin-bottom: 2px; text-transform: uppercase; letter-spacing: 1px; }
+    .msg code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #b8d4ff; }
+
+    footer {
+      padding: 6px 14px;
+      font-size: 12px;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      background: var(--panel);
+      display: flex; gap: 16px;
+    }
+    footer .ok { color: #5fd17a; }
+    footer .err { color: #ff6b6b; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Tile Jumper</h1>
+    <span class="tag">Claude is the level designer</span>
+    <span class="spacer"></span>
+    <span class="badge" id="level-id-badge">no level</span>
+    <span class="badge" id="conn-badge">bridge: offline</span>
+  </header>
+
+  <main>
+    <section class="pane">
+      <h2>Game</h2>
+      <div class="body" id="game-wrap">
+        <canvas id="game" width="1280" height="480"></canvas>
+      </div>
+    </section>
+
+    <section class="pane">
+      <h2>Level JSON</h2>
+      <div class="body"><pre id="json">loading…</pre></div>
+    </section>
+
+    <section class="pane">
+      <h2>Claude</h2>
+      <div class="body" id="chat">
+        <div class="msg user">
+          <div class="who">You</div>
+          Design a level themed spooky castle, medium difficulty, 60 tiles long.
+        </div>
+        <div class="msg claude">
+          <div class="who">Claude</div>
+          Calling <code>generate_level({ theme: "spooky", difficulty: 3, length: 60 })</code>…
+        </div>
+        <div class="msg claude">
+          <div class="who">Claude</div>
+          Loaded <code>sample-1</code>. Hit <kbd>R</kbd> in the game pane to reset.
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span id="status">ready</span>
+    <span class="spacer" style="flex:1"></span>
+    <span>tile: 32px</span>
+    <span>controls: ← → / space / R</span>
+  </footer>
+
+  <script>
+    const TILE = 32;
+
+    const TILE_COLORS = {
+      ground: "#8b5a2b",
+      brick:  "#c8703a",
+      pipe:   "#2fa84f",
+      coin:   "#ffd24a",
+      flag:   "#d94a4a",
+      empty:  null,
+    };
+
+    const ENEMY_COLORS = {
+      goomba:  "#8b4a2b",
+      koopa:   "#3aa84f",
+      piranha: "#d94a4a",
+    };
+
+    function renderLevel(ctx, level) {
+      const w = level.width * TILE;
+      const h = level.height * TILE;
+      ctx.canvas.width = w;
+      ctx.canvas.height = h;
+
+      // sky
+      const sky = ctx.createLinearGradient(0, 0, 0, h);
+      sky.addColorStop(0, "#9bd6f5");
+      sky.addColorStop(1, "#cfeeff");
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, w, h);
+
+      // tiles
+      for (let y = 0; y < level.height; y++) {
+        for (let x = 0; x < level.width; x++) {
+          const t = level.tiles[y]?.[x];
+          const color = TILE_COLORS[t];
+          if (!color) continue;
+          drawTile(ctx, x, y, t, color);
+        }
+      }
+
+      // enemies
+      for (const e of level.enemies ?? []) {
+        drawEnemy(ctx, e);
+      }
+
+      // player start
+      drawPlayer(ctx, level.playerStart);
+    }
+
+    function drawTile(ctx, x, y, type, color) {
+      const px = x * TILE, py = y * TILE;
+      ctx.fillStyle = color;
+      if (type === "coin") {
+        ctx.beginPath();
+        ctx.arc(px + TILE / 2, py + TILE / 2, TILE / 3, 0, Math.PI * 2);
+        ctx.fill();
+        return;
+      }
+      if (type === "flag") {
+        // pole
+        ctx.fillStyle = "#cccccc";
+        ctx.fillRect(px + TILE / 2 - 2, py, 4, TILE);
+        // banner
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(px + TILE / 2 + 2, py + 4);
+        ctx.lineTo(px + TILE, py + 10);
+        ctx.lineTo(px + TILE / 2 + 2, py + 16);
+        ctx.closePath();
+        ctx.fill();
+        return;
+      }
+      ctx.fillRect(px, py, TILE, TILE);
+      // subtle top highlight
+      ctx.fillStyle = "rgba(255,255,255,0.12)";
+      ctx.fillRect(px, py, TILE, 3);
+      // outline
+      ctx.strokeStyle = "rgba(0,0,0,0.25)";
+      ctx.strokeRect(px + 0.5, py + 0.5, TILE - 1, TILE - 1);
+    }
+
+    function drawEnemy(ctx, e) {
+      const px = e.x * TILE, py = e.y * TILE;
+      ctx.fillStyle = ENEMY_COLORS[e.type] ?? "#888";
+      ctx.beginPath();
+      ctx.arc(px + TILE / 2, py + TILE / 2, TILE / 2 - 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "white";
+      ctx.fillRect(px + 9, py + 11, 4, 4);
+      ctx.fillRect(px + 19, py + 11, 4, 4);
+    }
+
+    function drawPlayer(ctx, start) {
+      if (!start) return;
+      const px = start.x * TILE, py = start.y * TILE;
+      ctx.fillStyle = "#4a7bd9";
+      ctx.fillRect(px + 4, py + 2, TILE - 8, TILE - 4);
+      ctx.fillStyle = "#ffd9b0";
+      ctx.fillRect(px + 8, py + 4, TILE - 16, 8);
+    }
+
+    function setStatus(text, kind) {
+      const el = document.getElementById("status");
+      el.textContent = text;
+      el.className = kind ?? "";
+    }
+
+    async function loadFixture() {
+      const canvas = document.getElementById("game");
+      const ctx = canvas.getContext("2d");
+      try {
+        const res = await fetch("../fixtures/sample-level.json");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const level = await res.json();
+        renderLevel(ctx, level);
+        document.getElementById("json").textContent = JSON.stringify(level, null, 2);
+        document.getElementById("level-id-badge").textContent = `level: ${level.id}`;
+        setStatus(`loaded ${level.id} (${level.width}×${level.height})`, "ok");
+      } catch (err) {
+        setStatus(`failed to load fixture: ${err.message} — serve this folder over http (e.g. \`npx serve\`)`, "err");
+        document.getElementById("json").textContent = String(err);
+      }
+    }
+
+    loadFixture();
+  </script>
+</body>
+</html>
