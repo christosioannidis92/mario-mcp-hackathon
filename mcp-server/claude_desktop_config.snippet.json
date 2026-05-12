@@ -3,7 +3,7 @@
     "mario": {
       "command": "node",
       "args": [
-        "C:\\Users\\Álvaro\\Desktop\\BootCamp\\Hackaton_Exercise4\\mario-mcp-hackathon\\mcp-server\\dist\\index.js"
+        "C:\\Users\\Álvaro\\Desktop\\BootCamp\\Hackaton_Exercise4\\mario-mcp-hackathon\\mcp-server\\dist\\mcp-server\\src\\index.js"
       ]
     }
   }

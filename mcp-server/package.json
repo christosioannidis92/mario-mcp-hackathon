@@ -4,19 +4,22 @@
   "private": true,
   "type": "module",
   "bin": {
-    "mario-mcp-server": "dist/index.js"
+    "mario-mcp-server": "dist/mcp-server/src/index.js"
   },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "start": "node dist/index.js"
+    "start": "node dist/mcp-server/src/index.js",
+    "smoke": "node scripts/smoke-bridge.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
+    "ws": "^8.20.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^22.7.5",
+    "@types/ws": "^8.18.1",
     "typescript": "^5.6.3"
   }
 }

@@ -1,10 +1,21 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
-import type { Level, TileType, EnemyType } from "./types.js";
+import type { Level, TileType, EnemyType } from "../../world/src/types.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const fixturePath = resolve(here, "../../fixtures/sample-level.json");
+
+function findFixture(start: string): string {
+  let dir = start;
+  for (let i = 0; i < 6; i++) {
+    const candidate = resolve(dir, "fixtures/sample-level.json");
+    if (existsSync(candidate)) return candidate;
+    dir = resolve(dir, "..");
+  }
+  throw new Error(`could not locate fixtures/sample-level.json from ${start}`);
+}
+
+const fixturePath = findFixture(here);
 
 let currentLevel: Level = JSON.parse(readFileSync(fixturePath, "utf8")) as Level;
 
