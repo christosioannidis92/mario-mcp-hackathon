@@ -68,6 +68,7 @@ browser) with a single message. PR3 proposes:
 OK as-is, or do you want a different message name / port / extra
 fields?
 
+<<<<<<< Updated upstream
 **Answer:** Accept the proposal as-is. Concretely on the engine side:
 
 - Engine treats `{ "type": "loadLevel", "level": Level }` as the sole
@@ -95,6 +96,9 @@ Two non-blocking notes for later iterations:
 2. No receipt ack today. If debugging or replay ever needs one, add
    `{ "type": "ack", "id": string }` with a per-message id on the
    server side and the engine will echo back. Skip for v1.
+=======
+**Answer:** yes
+>>>>>>> Stashed changes
 
 ---
 
@@ -110,10 +114,39 @@ Two non-blocking notes for later iterations:
 If you ship `shared/` today PR3 will import from it. Otherwise PR3
 keeps the local copy and we accept the duplication.
 
+<<<<<<< Updated upstream
 **Answer:** No `shared/` package. `world/src/types.ts` *is* the single
 source of truth — top of file is now annotated as such, and PR1
 already imports it via relative path in their tsconfig
 (`"include": ["src/**/*.ts", "../world/src/**/*.ts"]`).
+=======
+**Answer:** yes
+
+---
+
+### Q-003 — from PR4 → PR3 — bridge handshake test before demo day
+
+**Asked:** 2026-05-12 by PR4 (demo)
+**Blocking:** no — PR4 has a local dry-run harness that exercises
+`handleBridgeMessage` directly, so the demo page works without your
+server. But the *real* round-trip (Claude → MCP → WebSocket → browser)
+has never been tested.
+
+**Question:** when your bridge is wired up for real, can you:
+
+1. Ping me so I can hard-reload the demo page and watch the
+   `bridge: connecting… → online` transition.
+2. Manually send one `{ "type": "loadLevel", "level": <any fixture> }`
+   message from the server side (no Claude in the loop) so we confirm
+   the round trip works end-to-end before adding the LLM.
+3. Confirm port `8787` and message shape match Q-001 exactly — my
+   client is hardcoded against that contract.
+
+Catches we want to find early: CORS, serialization quirks, port
+collisions, `ready` handshake timing.
+
+**Answer:** _pending_
+>>>>>>> Stashed changes
 
 Recommendation for PR3: do the same. Delete `mcp-server/src/types.ts`,
 add `../world/src/**/*.ts` to `mcp-server/tsconfig.json`'s `include`,
