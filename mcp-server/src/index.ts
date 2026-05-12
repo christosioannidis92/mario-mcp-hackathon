@@ -1,12 +1,16 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { registerTools } from "./tools.js";
+import { instructions } from "./instructions.js";
 
 async function main(): Promise<void> {
-  const server = new McpServer({
-    name: "mario-mcp",
-    version: "0.0.1",
-  });
+  const server = new McpServer(
+    {
+      name: "mario-mcp",
+      version: "0.0.1",
+    },
+    { instructions },
+  );
 
   registerTools(server);
 
