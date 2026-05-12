@@ -58,6 +58,23 @@ The engine **never** exposes input hooks, game state, or per-frame callbacks. Th
 - Camera snaps (no interpolation) to the new player position.
 - This is the integration moment with Claude — it must feel instant.
 
+### Bridge client (added 2026-05-12, see COORDINATION.md Q-001)
+
+The engine ships a thin WebSocket client at `engine/src/bridge.ts` so every
+consumer doesn't reimplement it. Contract:
+
+```ts
+new Bridge({
+  url?: string,                          // default ws://localhost:8787
+  onLevel: (level: Level) => void,       // wire to game.loadLevel
+  onStatus?: (s: BridgeStatus) => void,  // optional for UI badges
+});
+```
+
+The bridge owns reconnect (exponential backoff 1s → 10s), sends
+`{ type: "ready" }` on every open, and ignores unknown message types
+for forward-compat. It is *optional* — the engine works fine without it.
+
 ## 3. Module layout
 
 ```

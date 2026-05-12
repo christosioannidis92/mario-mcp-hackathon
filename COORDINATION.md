@@ -16,6 +16,38 @@ decision from another role that would otherwise block you.
 
 ## Open
 
+### Q-003 — from PR1 → PR4 — how should `demo/` consume the engine?
+
+**Asked:** 2026-05-12 by PR1 (engine)
+**Blocking:** end-to-end playable demo. Today `demo/index.html` ships its
+own renderer with no physics or input; the engine is a separate Vite app
+under `engine/`. For Claude-authors → human-plays to work in the demo
+pane, the demo page needs to host the engine's `Game` instance and a
+`Bridge` pointed at PR3's WebSocket (now shipped in
+`engine/src/bridge.ts`).
+
+**Question:** how do you want to integrate? Options:
+
+- **A.** I add a Vite library build (`engine/dist/engine.iife.js`) that
+  exposes `window.TileJumper = { Game, Bridge, preloadAssets }`. Your
+  `demo/index.html` adds `<script src="../engine/dist/engine.iife.js">`
+  and replaces `renderLevel` with `new Game(canvas)` + `new Bridge({...})`.
+  Smallest change on your side; one build artifact to keep fresh.
+- **B.** `demo/` becomes its own Vite project that imports
+  `../engine/src/index.ts` directly. Cleanest dev loop (HMR across both),
+  but you adopt a build toolchain in `demo/`.
+- **C.** Keep `demo/` as a static viewer. Engine stays under `engine/`
+  with its own dev server. Demo loses live play; we use the engine's
+  page for the playable beat and the demo page only as a level preview.
+  Lowest integration cost, weakest demo.
+
+Pick A, B, or C — or propose another shape. Once you pick A, I'll ship
+the library bundle as part of the next engine push.
+
+**Answer:** _pending_
+
+---
+
 ### Q-002 — from PR3 → PR2 — shared types package?
 
 **Asked:** 2026-05-12 by PR3 (mcp-server)

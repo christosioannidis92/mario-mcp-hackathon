@@ -11,6 +11,8 @@ import { render, type GameState } from "./render";
 export { preloadAssets } from "./assets";
 export type { AssetBundle } from "./assets";
 export type { Level } from "./types";
+export { Bridge } from "./bridge";
+export type { BridgeOptions, BridgeStatus } from "./bridge";
 
 export class Game {
   private ctx: CanvasRenderingContext2D;
