@@ -277,6 +277,10 @@
     <span>controls: ← → / space / R</span>
   </footer>
 
+  <!-- Engine library bundle. Rebuild with `cd engine && npm run build:lib`.
+       Exposes window.TileJumper = { Game, Bridge, preloadAssets }. -->
+  <script src="../engine/lib/engine.iife.js"></script>
+
   <script>
     const TILE = 32;
 
@@ -484,10 +488,15 @@
 
     let canvasCtx = null;
     let currentLevel = null;
+    let game = null;   // TileJumper.Game instance, or null if bundle missing
 
     function setLevel(level, source) {
       currentLevel = level;
-      renderLevel(canvasCtx, level);
+      if (game) {
+        game.loadLevel(level);
+      } else {
+        renderLevel(canvasCtx, level);  // fallback static renderer
+      }
       document.getElementById("json").textContent = JSON.stringify(level, null, 2);
       document.getElementById("level-id-badge").textContent = `level: ${level.id}`;
       const spriteNote = sprites.loaded === 0
@@ -682,6 +691,26 @@
       logEntry("System", "Waiting for Claude to author a level…");
 
       await Promise.all([loadSprites(), loadSounds()]);
+
+      // Hand control of the canvas to the engine if the bundle loaded.
+      // Engine handles physics, input, and rendering from here on; we keep
+      // the bridge client, JSON pane, log, and dev panel.
+      if (typeof TileJumper !== "undefined" && TileJumper.Game) {
+        try {
+          game = new TileJumper.Game(canvas, {
+            tiles: sprites.tiles,
+            enemies: sprites.enemies,
+            player: sprites.player,
+          });
+          logEntry("System", "Engine loaded — demo is playable");
+        } catch (err) {
+          console.error("[demo] engine init failed, falling back to static renderer", err);
+          game = null;
+        }
+      } else {
+        logEntry("System", "Engine bundle missing — static viewer mode (rebuild: cd engine && npm run build:lib)");
+      }
+
       await loadAndRender(FIXTURES[0].path);
       connectBridge();
     }

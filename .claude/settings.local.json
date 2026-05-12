@@ -5,7 +5,9 @@
       "Bash(python -c \"import scipy; print\\('scipy', scipy.__version__\\)\")",
       "Bash(python -c \"from PIL import Image; im = Image.open\\('image-d229f5c9-485b-42af-8a62-c341f1f2707a.png'\\); print\\('size:', im.size, 'mode:', im.mode\\); print\\('corner color:', im.convert\\('RGB'\\).getpixel\\(\\(0,0\\)\\)\\)\")",
       "Bash(pip install *)",
-      "Bash(python *)"
+      "Bash(python *)",
+      "Bash(npm install *)",
+      "Bash(npm run *)"
     ]
   }
 }

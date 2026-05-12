@@ -8,3 +8,12 @@ build/
 Thumbs.db
 .vscode/
 .idea/
+
+# Sprite-slicer outputs — regenerate with tools/slice_sprites.py
+demo/assets/sprites_extracted/
+
+# Engine library bundle — rebuild with `cd engine && npm run build:lib`
+engine/lib/
+
+# Source sprite sheets (likely licensed third-party assets)
+demo/assets/source/
