@@ -6,7 +6,8 @@
   "scripts": {
     "build": "tsc",
     "test": "node --import tsx --test test/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "gen:fixtures": "node --import tsx scripts/generate-fixtures.ts"
   },
   "devDependencies": {
     "@types/node": "^22.7.5",
