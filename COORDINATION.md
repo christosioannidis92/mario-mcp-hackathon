@@ -22,21 +22,20 @@ decision from another role that would otherwise block you.
 **Blocking:** PR3 can't replace its stub WebSocket bridge with a real
 client until this is locked.
 
-**Question:** what message shape do you want on the WebSocket between
-the MCP server and the browser game? Current PR3 stub assumes:
+**Question:** post scope-reduction the bridge is one-way (server →
+browser) with a single message. PR3 proposes:
 
 - **server → browser**
-  - `{ "type": "loadLevel", "level": Level }`
-  - `{ "type": "pressButton", "button": "left|right|jump|run", "durationMs": number }`
-  - `{ "type": "reset" }`
-  - `{ "type": "requestState" }`
+  - `{ "type": "loadLevel", "level": Level }` — sent after every
+    authoring tool call (`place_tile`, `spawn_enemy`,
+    `set_player_start`, `load_level`)
 - **browser → server**
-  - `{ "type": "ready" }`  (on connect; PR3 replies with a `loadLevel` snapshot)
-  - `{ "type": "state", "state": GameState }`  (in response to `requestState`)
+  - `{ "type": "ready" }` on connect → PR3 replies with a `loadLevel`
+    snapshot of the current in-memory level
 - **port:** `localhost:8787`
 
-OK as-is, or do you want different names / extra fields / different
-port?
+OK as-is, or do you want a different message name / port / extra
+fields?
 
 **Answer:** _pending_
 

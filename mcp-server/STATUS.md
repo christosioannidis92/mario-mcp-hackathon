@@ -38,8 +38,14 @@ printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion
 
 ## Still TODO (needs coordination)
 
-- **Real WebSocket bridge** — needs P1 to confirm message names and port. Stub message shape: `{ type: "loadLevel", level }`, `{ type: "pressButton", button, durationMs }`, `{ type: "reset" }`, `{ type: "requestState" }`. Suggested port: `localhost:8787`.
-- **`get_game_state` / `press_button` / `reset_level`** — stretch goal; requires the browser to be running and sending back `state` snapshots.
+- **Real WebSocket bridge** — needs P1 to confirm the contract in `COORDINATION.md` Q-001. After scope reduction the bridge is one-way (server → browser) with a single `loadLevel` message; suggested port `localhost:8787`.
 - **`generate_level` / `load_level` / `list_levels`** — depend on P2 building chunks/registry.
 - **Swap inline mutation for P2's `tools.ts`** — when P2 ships pure functions, replace the logic in `src/level-store.ts` with imports.
 - **System prompt for Claude Desktop** — write after tool list is final.
+
+## Out of scope (per `Reduce scope` commit on main)
+
+`get_game_state`, `press_button`, `reset_level` and the `GameState`
+schema are dropped — humans play with the keyboard, Claude only
+authors. PR3 never registered these tools, so nothing to remove from
+code; just keeping the note here for context.
