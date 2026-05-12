@@ -1,8 +1,8 @@
 import type { Level, TileType, EnemyType } from "./types";
-import type { Player } from "./entities";
+import type { Player, RuntimeEnemy } from "./entities";
 import type { Camera } from "./camera";
 import type { AssetBundle } from "./assets";
-import { TILE_SIZE, CANVAS_W, CANVAS_H } from "./constants";
+import { TILE_SIZE, CANVAS_W, CANVAS_H, PLAYER_SPRITE_W, PLAYER_SPRITE_H } from "./constants";
 
 const TILE_COLOR: Record<TileType, string> = {
   ground: "#8b5a2b",
@@ -27,6 +27,7 @@ export function render(
   ctx: CanvasRenderingContext2D,
   level: Level,
   player: Player,
+  enemies: RuntimeEnemy[],
   camera: Camera,
   assets: AssetBundle,
   state: GameState,
@@ -65,32 +66,46 @@ export function render(
     }
   }
 
-  // 3. Enemies
-  for (const e of level.enemies) {
-    const wx = e.x * TILE_SIZE;
-    if (wx + TILE_SIZE < camera.x || wx > camera.x + CANVAS_W) continue;
-    const sx = Math.floor(wx - camera.x);
-    const sy = Math.floor(e.y * TILE_SIZE - camera.y);
+  // 3. Enemies (runtime state — pixel positions, mirrored by facing)
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    if (e.x + TILE_SIZE < camera.x || e.x > camera.x + CANVAS_W) continue;
+    const sx = Math.floor(e.x - camera.x);
+    const sy = Math.floor(e.y - camera.y);
     const img = assets.enemies?.[e.type];
     if (img) {
-      ctx.drawImage(img, sx, sy, TILE_SIZE, TILE_SIZE);
+      // Flip sprite to match walking direction (vx < 0 → face left)
+      if (e.vx < 0) {
+        ctx.save();
+        ctx.translate(sx + TILE_SIZE, sy);
+        ctx.scale(-1, 1);
+        ctx.drawImage(img, 0, 0, TILE_SIZE, TILE_SIZE);
+        ctx.restore();
+      } else {
+        ctx.drawImage(img, sx, sy, TILE_SIZE, TILE_SIZE);
+      }
     } else {
       ctx.fillStyle = ENEMY_COLOR[e.type];
       ctx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
     }
   }
 
-  // 4. Player
+  // 4. Player. Use playerJump sprite when airborne if provided.
+  // Sprite is drawn larger than the AABB and anchored to its bottom-center,
+  // so the character looks tall but physics still uses the smaller hitbox.
   const px = Math.floor(player.x - camera.x);
   const py = Math.floor(player.y - camera.y);
-  if (assets.player) {
+  const playerImg = (!player.onGround && assets.playerJump) ? assets.playerJump : assets.player;
+  if (playerImg) {
+    const spriteX = px + (player.w - PLAYER_SPRITE_W) / 2;
+    const spriteY = py + (player.h - PLAYER_SPRITE_H);
     ctx.save();
     if (player.facing === -1) {
-      ctx.translate(px + player.w, py);
+      ctx.translate(spriteX + PLAYER_SPRITE_W, spriteY);
       ctx.scale(-1, 1);
-      ctx.drawImage(assets.player, 0, 0, player.w, player.h);
+      ctx.drawImage(playerImg, 0, 0, PLAYER_SPRITE_W, PLAYER_SPRITE_H);
     } else {
-      ctx.drawImage(assets.player, px, py, player.w, player.h);
+      ctx.drawImage(playerImg, spriteX, spriteY, PLAYER_SPRITE_W, PLAYER_SPRITE_H);
     }
     ctx.restore();
   } else {

@@ -1,7 +1,7 @@
 import type { Level } from "./types";
 import { SOLID_TILES } from "./types";
 import type { Input } from "./input";
-import type { Player } from "./entities";
+import type { Player, RuntimeEnemy } from "./entities";
 import {
   TILE_SIZE,
   GRAVITY, MAX_FALL_V,
@@ -94,21 +94,51 @@ export function checkTriggers(p: Player, level: Level): Trigger {
   return null;
 }
 
-// --- Enemy contact (static AABBs, one tile each) ---
-export function checkEnemyHit(p: Player, level: Level): boolean {
-  for (const e of level.enemies) {
-    const ex = e.x * TILE_SIZE;
-    const ey = e.y * TILE_SIZE;
+// --- Enemy contact (runtime AABBs, one tile each) ---
+export function checkEnemyHit(p: Player, enemies: RuntimeEnemy[]): boolean {
+  for (const e of enemies) {
+    if (!e.alive) continue;
     if (
-      p.x < ex + TILE_SIZE &&
-      p.x + p.w > ex &&
-      p.y < ey + TILE_SIZE &&
-      p.y + p.h > ey
+      p.x < e.x + TILE_SIZE &&
+      p.x + p.w > e.x &&
+      p.y < e.y + TILE_SIZE &&
+      p.y + p.h > e.y
     ) {
       return true;
     }
   }
   return false;
+}
+
+// --- Enemy walking. Horizontal only. Flips on wall collision or ledge edge. ---
+export function stepEnemies(enemies: RuntimeEnemy[], level: Level, dt: number): void {
+  for (const e of enemies) {
+    if (!e.alive || e.vx === 0) continue;
+    const dir = Math.sign(e.vx);
+    // Probe one pixel beyond the leading edge.
+    const probePx = dir > 0 ? e.x + TILE_SIZE : e.x - 1;
+    const tileX = Math.floor(probePx / TILE_SIZE);
+    const tileY = Math.floor((e.y + TILE_SIZE / 2) / TILE_SIZE);
+
+    const aheadTile = level.tiles[tileY]?.[tileX];
+    const wallBlocked = aheadTile !== undefined && SOLID_TILES.has(aheadTile);
+
+    // Ledge check: tile immediately below the probe position.
+    const belowY = tileY + 1;
+    let ledgeAhead: boolean;
+    if (belowY >= level.height) {
+      ledgeAhead = true;
+    } else {
+      const belowTile = level.tiles[belowY]?.[tileX];
+      ledgeAhead = belowTile === undefined || !SOLID_TILES.has(belowTile);
+    }
+
+    if (wallBlocked || ledgeAhead) {
+      e.vx = -e.vx;
+      continue;
+    }
+    e.x += e.vx * dt;
+  }
 }
 
 // --- Fall-off-the-bottom death ---

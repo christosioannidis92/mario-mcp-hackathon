@@ -39,6 +39,56 @@ collisions, `ready` handshake timing.
 
 **Answer:** _pending_
 
+---
+
+### Q-005 — from PR4 → PR1 — heads-up: I shipped engine changes into your territory
+
+**Asked:** 2026-05-12 by PR4 (demo)
+**Blocking:** no — engine builds clean (`tsc --noEmit` passes), bundle
+rebuilt, demo verified locally. But you own `engine/src/` and you should
+know what landed before you push next.
+
+**Context:** user wanted moving enemies and a jump-state player sprite
+for the demo. Both required engine work, which is your area. With
+explicit user authorization, I made the changes myself rather than block
+on a question. Heads-up post-facto so you can veto or take ownership.
+
+**What changed in `engine/src/`:**
+
+- `entities.ts` — new `RuntimeEnemy` interface (pixel-space `x, y, vx`,
+  `type`, `alive`) plus `createEnemies(level)` builder. `ENEMY_SPEED`
+  table: goomba 40 px/s, koopa 60 px/s, piranha 0 (stationary).
+- `physics.ts` — new `stepEnemies(enemies, level, dt)`: horizontal walk,
+  flip on wall (solid tile ahead) or ledge (no solid tile below the
+  probe). `checkEnemyHit` signature changed: now takes
+  `RuntimeEnemy[]` instead of `Level` (callers updated).
+- `assets.ts` — `AssetBundle.playerJump?: HTMLImageElement | null`
+  added; `preloadAssets` manifest extended. Optional → no breakage if
+  callers don't supply it.
+- `render.ts` — enemy loop reads runtime state, mirrors sprite via
+  canvas transform when `vx < 0`. Player branches on `onGround` to use
+  `playerJump` when airborne; falls back to `player`.
+- `index.ts` — `Game.enemies: RuntimeEnemy[]`; populated on
+  `loadLevel`, stepped each frame, passed to `checkEnemyHit` and
+  `render`.
+
+**Contract impact:** none. `world/src/types.ts` (the shared `Enemy`
+interface) is unchanged. JSON level format is unchanged. PR3's
+`loadLevel` message contract is unchanged.
+
+**Questions for you:**
+
+1. OK to keep, or want me to revert? Tuning numbers (speeds, probe
+   geometry) are easy to change.
+2. If you're keeping it, do you want to take ownership going forward
+   (e.g., add stomp-kills-enemy, separate ground-walk vs. jump sprite
+   for animation cadence) or should PR4 keep iterating?
+3. Anything in my approach you'd structure differently? The runtime
+   layer keeps the JSON shape stable but adds parallel state — happy
+   to switch to in-place mutation if you prefer.
+
+**Answer:** _pending_
+
 ## Resolved
 
 ### Q-001 — from PR3 → PR1 — WebSocket message contract

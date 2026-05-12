@@ -314,18 +314,20 @@
         koopa:   "assets/enemies/koopa.png",
         piranha: "assets/enemies/piranha.png",
       },
-      player: "assets/player/player.png",
+      player:     "assets/player/player.png",
+      playerJump: "assets/player/player-jump.png",
     };
 
-    const sprites = { tiles: {}, enemies: {}, player: null, loaded: 0, attempted: 0 };
+    const sprites = { tiles: {}, enemies: {}, player: null, playerJump: null, loaded: 0, attempted: 0 };
 
-    // Sounds: drop .ogg or .mp3 files matching these paths; missing files no-op.
+    // Sounds: WAV placeholders synthesized by tools/synth_sounds.py.
+    // Swap to real .ogg/.mp3 by changing the extension; loader handles either.
     const SOUND_PATHS = {
-      jump:  "assets/sounds/jump.ogg",
-      coin:  "assets/sounds/coin.ogg",
-      stomp: "assets/sounds/stomp.ogg",
-      death: "assets/sounds/death.ogg",
-      win:   "assets/sounds/win.ogg",
+      jump:  "assets/sounds/jump.wav",
+      coin:  "assets/sounds/coin.wav",
+      stomp: "assets/sounds/stomp.wav",
+      death: "assets/sounds/death.wav",
+      win:   "assets/sounds/win.wav",
     };
     const sounds = { clips: {}, loaded: 0, attempted: 0 };
 
@@ -359,9 +361,12 @@
     // Fixtures available to the demo. Add new entries here as Person 2 / Claude
     // generate them; they show up in the header dropdown.
     const FIXTURES = [
-      { id: "sample-1",      path: "../fixtures/sample-level.json",       label: "sample-1 (overworld)" },
-      { id: "castle-1",      path: "../fixtures/level-castle.json",       label: "castle-1 (fallback)" },
-      { id: "underground-1", path: "../fixtures/level-underground.json",  label: "underground-1 (fallback)" },
+      { id: "sample-1",      path: "../fixtures/sample-level.json",         label: "sample-1 (overworld)" },
+      { id: "overworld-2",   path: "../fixtures/level-overworld-2.json",    label: "overworld-2 (hills + pipes)" },
+      { id: "castle-1",      path: "../fixtures/level-castle.json",         label: "castle-1" },
+      { id: "underground-1", path: "../fixtures/level-underground.json",    label: "underground-1" },
+      { id: "ice-1",         path: "../fixtures/level-ice.json",            label: "ice-1 (gappy)" },
+      { id: "spooky-1",      path: "../fixtures/level-spooky.json",         label: "spooky-1 (dense)" },
     ];
 
     function loadImage(src) {
@@ -385,6 +390,8 @@
       }
       sprites.attempted++;
       jobs.push(loadImage(ASSET_PATHS.player).then((img) => { if (img) { sprites.player = img; sprites.loaded++; } }));
+      sprites.attempted++;
+      jobs.push(loadImage(ASSET_PATHS.playerJump).then((img) => { if (img) { sprites.playerJump = img; sprites.loaded++; } }));
       await Promise.all(jobs);
     }
 
@@ -701,6 +708,7 @@
             tiles: sprites.tiles,
             enemies: sprites.enemies,
             player: sprites.player,
+            playerJump: sprites.playerJump,
           });
           logEntry("System", "Engine loaded — demo is playable");
         } catch (err) {

@@ -3,9 +3,9 @@ import type { AssetBundle } from "./assets";
 import { CANVAS_W, CANVAS_H, DEATH_FREEZE_S } from "./constants";
 import { startLoop, type StopFn } from "./loop";
 import { createInput, type Input } from "./input";
-import { createPlayer, type Player } from "./entities";
+import { createPlayer, createEnemies, type Player, type RuntimeEnemy } from "./entities";
 import { createCamera, followCamera, snapCamera, type Camera } from "./camera";
-import { stepPlayer, checkTriggers, checkDeath, checkEnemyHit } from "./physics";
+import { stepPlayer, stepEnemies, checkTriggers, checkDeath, checkEnemyHit } from "./physics";
 import { render, type GameState } from "./render";
 
 export { preloadAssets } from "./assets";
@@ -19,6 +19,7 @@ export class Game {
   private assets: AssetBundle;
   private level: Level | null = null;
   private player: Player | null = null;
+  private enemies: RuntimeEnemy[] = [];
   private camera: Camera = createCamera();
   private input: ReturnType<typeof createInput>;
   private stopLoop: StopFn | null = null;
@@ -45,6 +46,7 @@ export class Game {
     }
     this.level = level;
     this.player = createPlayer(level.playerStart);
+    this.enemies = createEnemies(level);
     this.camera = createCamera();
     snapCamera(this.camera, this.player, this.level);
     this.state = "PLAYING";
@@ -88,11 +90,12 @@ export class Game {
 
     if (this.state === "PLAYING") {
       stepPlayer(this.player, this.input, this.level, dt);
+      stepEnemies(this.enemies, this.level, dt);
       followCamera(this.camera, this.player, this.level);
 
       const trigger = checkTriggers(this.player, this.level);
       if (trigger === "flag") this.state = "WON";
-      else if (checkEnemyHit(this.player, this.level)) this.state = "DEAD";
+      else if (checkEnemyHit(this.player, this.enemies)) this.state = "DEAD";
       else if (checkDeath(this.player, this.level)) this.state = "DEAD";
     } else if (this.state === "DEAD") {
       this.deathTimer += dt;
@@ -107,7 +110,7 @@ export class Game {
       this.ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
       return;
     }
-    render(this.ctx, this.level, this.player, this.camera, this.assets, this.state);
+    render(this.ctx, this.level, this.player, this.enemies, this.camera, this.assets, this.state);
   }
 }
 

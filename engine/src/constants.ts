@@ -16,8 +16,13 @@ export const JUMP_CUT_V     = 200;    // px/s cap when releasing jump while risi
 export const COYOTE_MS      = 90;     // ms after leaving ground where jump still works
 export const JUMP_BUFFER_MS = 90;     // ms — pressing jump before landing still jumps on land
 
-export const PLAYER_W = 24;           // px
+export const PLAYER_W = 24;           // px — AABB used for physics/collision
 export const PLAYER_H = 28;           // px
+
+// Sprite is drawn larger than the AABB and bottom-anchored to it, so the
+// character looks tall but still fits through 1-tile gaps. Pure render-only.
+export const PLAYER_SPRITE_W = 40;    // px
+export const PLAYER_SPRITE_H = 56;    // px
 
 export const FIXED_DT     = 1 / 60;   // s — fixed simulation step
 export const MAX_FRAME_MS = 100;      // clamp huge frame gaps (tab refocus)

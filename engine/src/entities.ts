@@ -1,3 +1,4 @@
+import type { Level, EnemyType } from "./types";
 import { TILE_SIZE, PLAYER_W, PLAYER_H } from "./constants";
 
 export interface Player {
@@ -12,6 +13,22 @@ export interface Player {
   jumpBufferMs: number;   // counts down after a jump press while airborne
   facing: 1 | -1;
 }
+
+// Runtime enemy state. Pixel-space position so they can walk smoothly.
+// Built from level.enemies (tile-unit) on every loadLevel/reset.
+export interface RuntimeEnemy {
+  x: number;          // world px — top-left of 32×32 AABB
+  y: number;
+  vx: number;         // px/s — 0 for stationary (piranha)
+  type: EnemyType;
+  alive: boolean;
+}
+
+const ENEMY_SPEED: Record<EnemyType, number> = {
+  goomba:  40,
+  koopa:   60,
+  piranha:  0,   // stationary on top of its pipe
+};
 
 export function createPlayer(start: { x: number; y: number }): Player {
   // playerStart is in tile units. Bottom-align the AABB inside the starting tile,
@@ -28,4 +45,14 @@ export function createPlayer(start: { x: number; y: number }): Player {
     jumpBufferMs: 0,
     facing: 1,
   };
+}
+
+export function createEnemies(level: Level): RuntimeEnemy[] {
+  return level.enemies.map((e) => ({
+    x: e.x * TILE_SIZE,
+    y: e.y * TILE_SIZE,
+    vx: ENEMY_SPEED[e.type],
+    type: e.type,
+    alive: true,
+  }));
 }
