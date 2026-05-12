@@ -8,12 +8,19 @@ Working notes for the P3 work-in-progress. The team-facing doc is `README.md`.
 - Loads `fixtures/sample-level.json` into an in-memory `currentLevel`.
 - Types come from `world/src/types.ts` (single source of truth, per Q-002 resolution).
 - A Claude Desktop system prompt is shipped via the server's `instructions` field — covers tile coords, the four authoring tools, design rules and a worked "make it harder" example.
-- Registered tools:
-  - `describe_level` — returns the current level JSON.
-  - `place_tile(x, y, type)` — mutates `tiles[y][x]`.
-  - `spawn_enemy(x, y, type)` — pushes to `enemies[]`.
-  - `set_player_start(x, y)` — moves player spawn.
-- Out-of-bounds calls return `isError: true` with a readable message.
+- Backed by PR2's `LevelStore` from `world/src/tools.js`: multi-level
+  store with `generate`, `load`, `mutate`, `list` and a `subscribe`
+  hook that the bridge consumes.
+- Registered tools (each authoring tool accepts an optional
+  `level_id`; if omitted, edits the current level):
+  - `generate_level(theme, difficulty, length, seed?)` — composes chunks via PR2's pipeline; returns the new id and makes it current.
+  - `list_levels` — returns every id in the store plus the current.
+  - `load_level(level_id)` — switches the current level.
+  - `describe_level(level_id?)` — human-readable summary (tile/enemy counts, ground gaps, flag).
+  - `place_tile(x, y, type, level_id?)`
+  - `spawn_enemy(x, y, type, level_id?)` — refuses to spawn inside a solid tile.
+  - `set_player_start(x, y, level_id?)` — refuses to spawn the player inside a solid tile.
+- Errors (out of bounds, unknown id, invalid spawn) come back as `isError: true` with a readable message.
 - **Real WebSocket bridge** on `ws://localhost:8787` (per Q-001 resolution): replies to `{type:"ready"}` with a `loadLevel` snapshot and broadcasts `loadLevel` to all connected clients after every authoring mutation.
 
 ## Run locally
@@ -42,10 +49,10 @@ printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion
 For the integrated bridge test (spawns the server, connects a WS client,
 asserts mutations propagate): `npm run smoke`.
 
-## Still TODO (needs coordination)
+## Still TODO
 
-- **`generate_level` / `load_level` / `list_levels`** — depend on PR2's `world/src/tools.ts` chunks. Now that `world/` is shipped, PR3 can wire these up next.
-- **Refresh the system prompt** with an updated "easy"/"hard" example once `generate_level` is wired in — current prompt only references the static fixture.
+- **Live test with Claude Desktop** — wire the config, restart Claude Desktop, run through the demo arc end-to-end: generate → describe → edit → load fixture → edit.
+- **System prompt tuning** — once we see how Claude uses the tools in practice, tighten the prompt (especially the "make it harder" example, which is still hand-written against the fixture).
 
 ## Out of scope (per `Reduce scope` commit on main)
 

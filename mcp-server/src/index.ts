@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { registerTools } from "./tools.js";
 import { instructions } from "./instructions.js";
-import { startBridge } from "./bridge.js";
+import { startBridge, sendToBrowser } from "./bridge.js";
+import { store } from "./store.js";
 
 async function main(): Promise<void> {
   const server = new McpServer(
@@ -15,6 +16,7 @@ async function main(): Promise<void> {
 
   registerTools(server);
   startBridge();
+  store.subscribe((level) => sendToBrowser({ type: "loadLevel", level }));
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
