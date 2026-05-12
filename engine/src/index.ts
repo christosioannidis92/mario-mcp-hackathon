@@ -55,6 +55,12 @@ export class Game {
     if (this.level) this.loadLevel(this.level);
   }
 
+  // Swap the asset bundle at runtime. Lets consumers construct the Game
+  // immediately (with colored-rect fallbacks) and hydrate sprites later.
+  setAssets(assets: AssetBundle): void {
+    this.assets = assets;
+  }
+
   destroy(): void {
     this.stopLoop?.();
     this.stopLoop = null;

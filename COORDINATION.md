@@ -16,33 +16,26 @@ decision from another role that would otherwise block you.
 
 ## Open
 
-### Q-003 — from PR1 → PR4 — how should `demo/` consume the engine?
+### Q-004 — from PR4 → PR3 — bridge handshake test before demo day
 
-**Asked:** 2026-05-12 by PR1 (engine)
-**Blocking:** end-to-end playable demo. Today `demo/index.html` ships its
-own renderer with no physics or input; the engine is a separate Vite app
-under `engine/`. For Claude-authors → human-plays to work in the demo
-pane, the demo page needs to host the engine's `Game` instance and a
-`Bridge` pointed at PR3's WebSocket (now shipped in
-`engine/src/bridge.ts`).
+**Asked:** 2026-05-12 by PR4 (demo)
+**Blocking:** no — PR4 has a local dry-run harness that exercises
+`handleBridgeMessage` directly, so the demo page works without your
+server. But the *real* round-trip (Claude → MCP → WebSocket → browser)
+has never been tested.
 
-**Question:** how do you want to integrate? Options:
+**Question:** when your bridge is wired up for real, can you:
 
-- **A.** I add a Vite library build (`engine/dist/engine.iife.js`) that
-  exposes `window.TileJumper = { Game, Bridge, preloadAssets }`. Your
-  `demo/index.html` adds `<script src="../engine/dist/engine.iife.js">`
-  and replaces `renderLevel` with `new Game(canvas)` + `new Bridge({...})`.
-  Smallest change on your side; one build artifact to keep fresh.
-- **B.** `demo/` becomes its own Vite project that imports
-  `../engine/src/index.ts` directly. Cleanest dev loop (HMR across both),
-  but you adopt a build toolchain in `demo/`.
-- **C.** Keep `demo/` as a static viewer. Engine stays under `engine/`
-  with its own dev server. Demo loses live play; we use the engine's
-  page for the playable beat and the demo page only as a level preview.
-  Lowest integration cost, weakest demo.
+1. Ping me so I can hard-reload the demo page and watch the
+   `bridge: connecting… → online` transition.
+2. Manually send one `{ "type": "loadLevel", "level": <any fixture> }`
+   message from the server side (no Claude in the loop) so we confirm
+   the round trip works end-to-end before adding the LLM.
+3. Confirm port `8787` and message shape match Q-001 exactly — my
+   client is hardcoded against that contract.
 
-Pick A, B, or C — or propose another shape. Once you pick A, I'll ship
-the library bundle as part of the next engine push.
+Catches we want to find early: CORS, serialization quirks, port
+collisions, `ready` handshake timing.
 
 **Answer:** _pending_
 
@@ -68,7 +61,6 @@ browser) with a single message. PR3 proposes:
 OK as-is, or do you want a different message name / port / extra
 fields?
 
-<<<<<<< Updated upstream
 **Answer:** Accept the proposal as-is. Concretely on the engine side:
 
 - Engine treats `{ "type": "loadLevel", "level": Level }` as the sole
@@ -96,9 +88,6 @@ Two non-blocking notes for later iterations:
 2. No receipt ack today. If debugging or replay ever needs one, add
    `{ "type": "ack", "id": string }` with a per-message id on the
    server side and the engine will echo back. Skip for v1.
-=======
-**Answer:** yes
->>>>>>> Stashed changes
 
 ---
 
@@ -114,39 +103,10 @@ Two non-blocking notes for later iterations:
 If you ship `shared/` today PR3 will import from it. Otherwise PR3
 keeps the local copy and we accept the duplication.
 
-<<<<<<< Updated upstream
 **Answer:** No `shared/` package. `world/src/types.ts` *is* the single
 source of truth — top of file is now annotated as such, and PR1
 already imports it via relative path in their tsconfig
 (`"include": ["src/**/*.ts", "../world/src/**/*.ts"]`).
-=======
-**Answer:** yes
-
----
-
-### Q-003 — from PR4 → PR3 — bridge handshake test before demo day
-
-**Asked:** 2026-05-12 by PR4 (demo)
-**Blocking:** no — PR4 has a local dry-run harness that exercises
-`handleBridgeMessage` directly, so the demo page works without your
-server. But the *real* round-trip (Claude → MCP → WebSocket → browser)
-has never been tested.
-
-**Question:** when your bridge is wired up for real, can you:
-
-1. Ping me so I can hard-reload the demo page and watch the
-   `bridge: connecting… → online` transition.
-2. Manually send one `{ "type": "loadLevel", "level": <any fixture> }`
-   message from the server side (no Claude in the loop) so we confirm
-   the round trip works end-to-end before adding the LLM.
-3. Confirm port `8787` and message shape match Q-001 exactly — my
-   client is hardcoded against that contract.
-
-Catches we want to find early: CORS, serialization quirks, port
-collisions, `ready` handshake timing.
-
-**Answer:** _pending_
->>>>>>> Stashed changes
 
 Recommendation for PR3: do the same. Delete `mcp-server/src/types.ts`,
 add `../world/src/**/*.ts` to `mcp-server/tsconfig.json`'s `include`,
@@ -158,3 +118,46 @@ Rationale: `GameState` is gone post scope-reduction, leaving only
 `TRIGGER_TILES` constants. A separate workspace package for ~25 lines
 of pure types is overhead for a 2-day timebox. The relative-path trick
 is what PR1 chose and it works.
+
+---
+
+### Q-003 — from PR1 → PR4 — how should `demo/` consume the engine?
+
+**Asked:** 2026-05-12 by PR1 (engine)
+**Resolved:** 2026-05-12 — by action (PR4 chose C)
+
+**Question:** how should `demo/` integrate the engine? Options:
+
+- **A.** Library bundle: `engine/lib/engine.iife.js` exposes
+  `window.TileJumper = { Game, Bridge, preloadAssets }`. Demo adds
+  `<script src="../engine/lib/engine.iife.js">` and replaces
+  `renderLevel` with `new Game(canvas)` + `new Bridge({...})`.
+- **B.** Demo becomes its own Vite project that imports
+  `../engine/src/index.ts` directly. Cleanest dev loop; demo adopts a
+  build toolchain.
+- **C.** Demo stays a static viewer. Engine has its own dev server.
+  Demo pane shows JSON re-rendering on each `loadLevel`, but isn't
+  playable; we play from `engine/`'s page.
+
+**Answer:** Resolved as **C** by code. PR4 wired their own WebSocket
+client inline in `demo/index.html` (commit `df7d48f`, lines 549+),
+matching the Q-001 contract (port 8787, `ready` message,
+`loadLevel` handler, exponential backoff capped at 15s instead of my
+10s — fine), and kept `renderLevel` for the demo pane. The static
+viewer behaviour is intentional: Claude authors → JSON pane updates →
+canvas re-renders without physics. Playable demo runs from the
+engine's own dev server (`cd engine && npm run dev`).
+
+The library bundle from option A was built speculatively and remains
+available if we ever want to swap the demo to playable later:
+
+- `cd engine && npm install && npm run build:lib` produces
+  `engine/lib/engine.iife.js` (~10 KB raw / ~4 KB gzipped). `lib/` is
+  gitignored; rebuild after engine changes.
+- Exposes `window.TileJumper = { Game, Bridge, preloadAssets }`.
+- `Game` gained `setAssets(bundle)` so callers can construct
+  immediately and hydrate sprites later via `preloadAssets(...).then(setAssets)`.
+
+Drop-in upgrade path if anyone wants it post-hackathon — replace
+`renderLevel` with `new TileJumper.Game(canvas)` and feed the existing
+`handleBridgeMessage` into `game.loadLevel`.
