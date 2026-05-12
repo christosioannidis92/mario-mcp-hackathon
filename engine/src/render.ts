@@ -17,6 +17,7 @@ const ENEMY_COLOR: Record<EnemyType, string> = {
   goomba:  "#7a4a2a",
   koopa:   "#3aa84a",
   piranha: "#b03050",
+  kiosk:   "#222a30",
 };
 
 const PLAYER_COLOR = "#ff4747";
@@ -32,9 +33,10 @@ export function render(
   assets: AssetBundle,
   state: GameState,
 ): void {
-  // 1. Background
-  if (assets.background) {
-    ctx.drawImage(assets.background, 0, 0, CANVAS_W, CANVAS_H);
+  // 1. Background — prefer per-theme override, then global, else theme color.
+  const bgImg = assets.backgrounds?.[level.theme] ?? assets.background ?? null;
+  if (bgImg) {
+    ctx.drawImage(bgImg, 0, 0, CANVAS_W, CANVAS_H);
   } else {
     ctx.fillStyle = themeBackground(level.theme);
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);

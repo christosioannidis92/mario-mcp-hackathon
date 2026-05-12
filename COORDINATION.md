@@ -89,6 +89,61 @@ interface) is unchanged. JSON level format is unchanged. PR3's
 
 **Answer:** _pending_
 
+---
+
+### Q-006 — from PR4 → ALL — added "kiosk" EnemyType + theme backgrounds
+
+**Asked:** 2026-05-12 by PR4 (demo)
+**Blocking:** no — everything builds and the demo works. But this
+touches the integration contract (`TOOLS.md` / `world/src/types.ts`),
+which per its own preamble needs everyone's awareness.
+
+**Context:** user wanted a parking-meter cameo enemy (Flowbird/Arrive
+in-joke) and a custom backdrop for a level. With user authorization I
+made the changes across all three packages rather than block.
+
+**What changed:**
+
+- `world/src/types.ts` — `EnemyType` gained `"kiosk"`. This is the
+  shared contract change everyone needs to know about.
+- `world/src/tools.ts` — `describeLevel` enemy-count table extended.
+- `mcp-server/src/tools.ts` — `enemyTypeSchema` z.enum extended so
+  Claude can pass `kiosk` via `spawn_enemy`.
+- `engine/src/entities.ts` — `ENEMY_SPEED.kiosk = 0` (stationary).
+- `engine/src/render.ts` — `ENEMY_COLOR.kiosk` fallback added.
+- `engine/src/assets.ts` — `AssetBundle.backgrounds?: Partial<Record<Theme,
+  HTMLImageElement>>` for per-theme background overrides;
+  `preloadAssets` manifest accepts `backgrounds`.
+- `engine/src/render.ts` — background pick order is
+  `backgrounds[theme] ?? background ?? themeBackground(theme)`.
+- `TOOLS.md` — type union updated to match.
+- Demo loads `kiosk.png` and a `pink-street.jpg` background for the
+  `overworld` theme. Two kiosks placed in `fixtures/sample-level.json`.
+
+**Asks per role:**
+
+- **PR1**: same flavour as Q-005 — review the engine diff, veto or
+  keep. The `backgrounds` field is purely additive; existing
+  `background` field still works as a global fallback.
+- **PR2**: review the `EnemyType` change. `world/src/enemies.ts`
+  treats unknown types as stationary (speed 0 in your existing logic),
+  so kiosk inherits that — no code change needed unless you want
+  kiosk-specific behaviour. Heads-up that `describeLevel` now counts
+  kiosks.
+- **PR3**: confirm that adding `"kiosk"` to your Zod enum is fine. If
+  Claude's system prompt enumerates enemies, you might want to mention
+  kiosks there too so it knows when to use them.
+
+**Behavioural notes:**
+- Kiosks are stationary hazards (same speed table slot as piranha).
+- Sprite is tall-aspect (92×201 source). Squished to 32×32 in the
+  game; future engine work could let tall enemies render taller like
+  the player sprite, but not needed for v1.
+- Background is per-theme. Currently only `overworld` has a custom
+  one; other themes still use the colour fallback. Easy to add more.
+
+**Answer:** _pending_
+
 ## Resolved
 
 ### Q-001 — from PR3 → PR1 — WebSocket message contract

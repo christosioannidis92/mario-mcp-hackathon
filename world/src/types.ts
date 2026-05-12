@@ -2,7 +2,7 @@
 // Do not change without a 2-minute team standup (see TOOLS.md).
 
 export type TileType = "ground" | "brick" | "pipe" | "coin" | "flag" | "empty";
-export type EnemyType = "goomba" | "koopa" | "piranha";
+export type EnemyType = "goomba" | "koopa" | "piranha" | "kiosk";
 export type Theme = "overworld" | "underground" | "castle" | "ice" | "spooky";
 
 export interface Enemy {

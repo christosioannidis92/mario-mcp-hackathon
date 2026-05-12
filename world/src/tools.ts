@@ -198,6 +198,7 @@ export function describeLevel(level: Level): string {
     goomba: 0,
     koopa: 0,
     piranha: 0,
+    kiosk: 0,
   };
   for (const e of level.enemies) enemyCounts[e.type] += 1;
 
@@ -221,7 +222,7 @@ export function describeLevel(level: Level): string {
   const lines: string[] = [
     `Level "${level.id}" — theme=${level.theme}, ${level.width}×${level.height} tiles.`,
     `Tiles: ground=${tileCounts.ground}, brick=${tileCounts.brick}, pipe=${tileCounts.pipe}, coin=${tileCounts.coin}, flag=${tileCounts.flag}.`,
-    `Enemies: goomba=${enemyCounts.goomba}, koopa=${enemyCounts.koopa}, piranha=${enemyCounts.piranha}.`,
+    `Enemies: goomba=${enemyCounts.goomba}, koopa=${enemyCounts.koopa}, piranha=${enemyCounts.piranha}, kiosk=${enemyCounts.kiosk}.`,
     `Player start: (${level.playerStart.x}, ${level.playerStart.y}).`,
     flag
       ? `Flag at (${flag.x}, ${flag.y}).`

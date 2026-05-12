@@ -1,4 +1,4 @@
-import type { TileType, EnemyType } from "./types";
+import type { TileType, EnemyType, Theme } from "./types";
 
 // Engine consumes pre-loaded images. Caller (demo/) owns paths and loading.
 // All fields optional → engine renders colored-rect fallbacks before sprites land.
@@ -7,7 +7,8 @@ export interface AssetBundle {
   enemies?: Partial<Record<EnemyType, HTMLImageElement>>;
   player?: HTMLImageElement | null;
   playerJump?: HTMLImageElement | null;  // shown when !onGround; falls back to player
-  background?: HTMLImageElement | null;
+  background?: HTMLImageElement | null;                       // global fallback
+  backgrounds?: Partial<Record<Theme, HTMLImageElement>>;     // per-theme override
 }
 
 // Optional helper. Returns a bundle with whatever loaded; missing keys stay undefined.
@@ -17,6 +18,7 @@ export async function preloadAssets(manifest: {
   player?: string;
   playerJump?: string;
   background?: string;
+  backgrounds?: Partial<Record<Theme, string>>;
 }): Promise<AssetBundle> {
   const loadImage = (src: string) =>
     new Promise<HTMLImageElement | null>((resolve) => {
@@ -40,13 +42,14 @@ export async function preloadAssets(manifest: {
     return out;
   };
 
-  const [tiles, enemies, player, playerJump, background] = await Promise.all([
+  const [tiles, enemies, player, playerJump, background, backgrounds] = await Promise.all([
     loadRecord(manifest.tiles),
     loadRecord(manifest.enemies),
     manifest.player ? loadImage(manifest.player) : Promise.resolve(null),
     manifest.playerJump ? loadImage(manifest.playerJump) : Promise.resolve(null),
     manifest.background ? loadImage(manifest.background) : Promise.resolve(null),
+    loadRecord(manifest.backgrounds),
   ]);
 
-  return { tiles, enemies, player, playerJump, background };
+  return { tiles, enemies, player, playerJump, background, backgrounds };
 }

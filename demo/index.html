@@ -227,6 +227,7 @@
     <span class="tag">Claude is the level designer</span>
     <span class="spacer"></span>
     <select id="level-select" title="Load a fixture level"></select>
+    <button id="level-random" title="Generate a fresh random level">🎲 random</button>
     <button id="sound-test" title="Play a test sound">♪ test</button>
     <span class="badge" id="level-id-badge">no level</span>
     <span class="badge" id="conn-badge">bridge: offline</span>
@@ -313,12 +314,16 @@
         goomba:  "assets/enemies/goomba.png",
         koopa:   "assets/enemies/koopa.png",
         piranha: "assets/enemies/piranha.png",
+        kiosk:   "assets/enemies/kiosk.png",
+      },
+      backgrounds: {
+        overworld: "assets/backgrounds/pink-street.jpg",
       },
       player:     "assets/player/player.png",
       playerJump: "assets/player/player-jump.png",
     };
 
-    const sprites = { tiles: {}, enemies: {}, player: null, playerJump: null, loaded: 0, attempted: 0 };
+    const sprites = { tiles: {}, enemies: {}, backgrounds: {}, player: null, playerJump: null, loaded: 0, attempted: 0 };
 
     // Sounds: WAV placeholders synthesized by tools/synth_sounds.py.
     // Swap to real .ogg/.mp3 by changing the extension; loader handles either.
@@ -358,6 +363,135 @@
       c.play().catch(() => {}); // browsers block autoplay until user gesture; ignore
     };
 
+    // ---- Random level generator -----------------------------------------
+    // Composes chunks left→right: spawn → middle chunks → end staircase + flag.
+    // Constraints: gaps ≤ 2 tiles (jumpable), no enemies in spawn zone,
+    // always exactly one reachable flag at the end. PR2's `generate_level`
+    // will eventually supersede this with a richer chunk library.
+    const THEMES = ["overworld", "underground", "castle", "ice", "spooky"];
+    const FLOOR_Y = 14;
+
+    function randInt(lo, hi) { return lo + Math.floor(Math.random() * (hi - lo + 1)); }
+    function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+    function chunkFlat(tiles, enemies, x0) {
+      const w = randInt(4, 8);
+      for (let x = x0; x < x0 + w; x++) tiles[FLOOR_Y][x] = "ground";
+      if (Math.random() < 0.55) {
+        const ex = x0 + Math.floor(w / 2);
+        enemies.push({ x: ex, y: 13, type: Math.random() < 0.7 ? "goomba" : "koopa" });
+      }
+      return w;
+    }
+
+    function chunkGap(tiles, enemies, x0) {
+      // Floor before, then a 1-2 tile gap. Player can jump it.
+      const before = randInt(2, 3);
+      for (let x = x0; x < x0 + before; x++) tiles[FLOOR_Y][x] = "ground";
+      const gap = randInt(1, 2);
+      return before + gap;
+    }
+
+    function chunkPipe(tiles, enemies, x0) {
+      // Floor segment with a 1-tile-wide pipe rising from it.
+      const w = 3;
+      for (let x = x0; x < x0 + w; x++) tiles[FLOOR_Y][x] = "ground";
+      const pipeH = randInt(2, 4);
+      const px = x0 + 1;
+      for (let y = FLOOR_Y - pipeH; y < FLOOR_Y; y++) tiles[y][px] = "pipe";
+      if (Math.random() < 0.35) {
+        enemies.push({ x: px, y: FLOOR_Y - pipeH - 1, type: "piranha" });
+      }
+      return w;
+    }
+
+    function chunkPlatform(tiles, enemies, x0) {
+      // Floor + a brick platform overhead, optional coin row above it.
+      const w = randInt(5, 8);
+      for (let x = x0; x < x0 + w; x++) tiles[FLOOR_Y][x] = "ground";
+      const platY = randInt(9, 11);
+      for (let x = x0 + 1; x < x0 + w - 1; x++) tiles[platY][x] = "brick";
+      if (Math.random() < 0.5) {
+        for (let x = x0 + 1; x < x0 + w - 1; x++) tiles[platY - 1][x] = "coin";
+      }
+      if (Math.random() < 0.45) {
+        enemies.push({ x: x0 + Math.floor(w / 2), y: 13, type: "goomba" });
+      }
+      return w;
+    }
+
+    function chunkKiosk(tiles, enemies, x0) {
+      // Flat segment with a stationary kiosk hazard mid-segment.
+      const w = randInt(5, 7);
+      for (let x = x0; x < x0 + w; x++) tiles[FLOOR_Y][x] = "ground";
+      enemies.push({ x: x0 + Math.floor(w / 2), y: 13, type: "kiosk" });
+      return w;
+    }
+
+    function chunkStaircase(tiles, enemies, x0) {
+      // Ascending then descending little hill of brick blocks (max 3 high).
+      const peak = randInt(2, 3);
+      const w = peak * 2 + 1;
+      for (let x = x0; x < x0 + w; x++) tiles[FLOOR_Y][x] = "ground";
+      for (let i = 0; i < peak; i++) {
+        tiles[FLOOR_Y - 1 - i][x0 + 1 + i] = "brick";
+        tiles[FLOOR_Y - 1 - i][x0 + w - 2 - i] = "brick";
+      }
+      // Optional enemy nearby
+      if (Math.random() < 0.4) {
+        enemies.push({ x: x0 + w - 1, y: 13, type: "koopa" });
+      }
+      return w;
+    }
+
+    function generateRandomLevel() {
+      const theme = pick(THEMES);
+      const width = randInt(50, 80);
+      const height = 15;
+      const tiles = Array.from({ length: height }, () => Array(width).fill("empty"));
+      const enemies = [];
+
+      // 1. Safe spawn zone — 5 tiles of floor, no enemies.
+      for (let x = 0; x < 5; x++) tiles[FLOOR_Y][x] = "ground";
+
+      // 2. Middle chunks until ~6 tiles before the end.
+      const chunkPool = [chunkFlat, chunkFlat, chunkGap, chunkPipe, chunkPlatform, chunkStaircase, chunkKiosk];
+      let x = 5;
+      const endStart = width - 6;
+      while (x < endStart) {
+        const consumed = pick(chunkPool)(tiles, enemies, x);
+        x += consumed;
+        // Safety: if a chunk overran, fall back to flat to close out
+        if (x > endStart) {
+          for (let xx = endStart; xx < width; xx++) tiles[FLOOR_Y][xx] = "ground";
+          break;
+        }
+      }
+
+      // 3. End zone: ascending staircase + flag.
+      for (let xx = endStart; xx < width; xx++) tiles[FLOOR_Y][xx] = "ground";
+      tiles[13][endStart + 1] = "brick";
+      tiles[12][endStart + 2] = "brick";
+      tiles[11][endStart + 3] = "brick";
+      tiles[10][width - 1] = "flag";
+
+      // 4. Filter any enemies that landed in the spawn zone or out of bounds.
+      const finalEnemies = enemies.filter(
+        (e) => e.x >= 5 && e.x < width - 2 && e.y >= 0 && e.y < height,
+      );
+
+      return {
+        id: `random-${Date.now().toString(36).slice(-5)}`,
+        theme,
+        width,
+        height,
+        playerStart: { x: 2, y: 13 },
+        enemies: finalEnemies,
+        tiles,
+      };
+    }
+
+    // ---- Fixtures -------------------------------------------------------
     // Fixtures available to the demo. Add new entries here as Person 2 / Claude
     // generate them; they show up in the header dropdown.
     const FIXTURES = [
@@ -387,6 +521,10 @@
       for (const [key, path] of Object.entries(ASSET_PATHS.enemies)) {
         sprites.attempted++;
         jobs.push(loadImage(path).then((img) => { if (img) { sprites.enemies[key] = img; sprites.loaded++; } }));
+      }
+      for (const [key, path] of Object.entries(ASSET_PATHS.backgrounds ?? {})) {
+        sprites.attempted++;
+        jobs.push(loadImage(path).then((img) => { if (img) { sprites.backgrounds[key] = img; sprites.loaded++; } }));
       }
       sprites.attempted++;
       jobs.push(loadImage(ASSET_PATHS.player).then((img) => { if (img) { sprites.player = img; sprites.loaded++; } }));
@@ -539,6 +677,8 @@
       const enemyCount = (level.enemies ?? []).length;
       if (source && source.startsWith("bridge")) {
         logEntry("Claude", `Loaded ${level.id} — ${level.theme}, ${level.width}×${level.height}, ${enemyCount} enemies`);
+      } else if (source === "random") {
+        logEntry("System", `🎲 Generated ${level.id} — ${level.theme}, ${level.width}×${level.height}, ${enemyCount} enemies`);
       } else if (source === "fixture") {
         logEntry("System", `Loaded fixture ${level.id}`);
       } else {
@@ -649,6 +789,13 @@
       });
     }
 
+    function wireRandomButton() {
+      document.getElementById("level-random").addEventListener("click", () => {
+        const level = generateRandomLevel();
+        setLevel(level, "random");
+      });
+    }
+
     function wireDevPanel() {
       const panel = document.getElementById("dev-panel");
 
@@ -694,6 +841,7 @@
       wireSoundTest();
       wireTitleScreen();
       wireDevPanel();
+      wireRandomButton();
 
       logEntry("System", "Waiting for Claude to author a level…");
 
@@ -707,6 +855,7 @@
           game = new TileJumper.Game(canvas, {
             tiles: sprites.tiles,
             enemies: sprites.enemies,
+            backgrounds: sprites.backgrounds,
             player: sprites.player,
             playerJump: sprites.playerJump,
           });

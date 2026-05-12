@@ -28,6 +28,7 @@ const ENEMY_SPEED: Record<EnemyType, number> = {
   goomba:  40,
   koopa:   60,
   piranha:  0,   // stationary on top of its pipe
+  kiosk:    0,   // stationary ground hazard (parking-meter cameo)
 };
 
 export function createPlayer(start: { x: number; y: number }): Player {

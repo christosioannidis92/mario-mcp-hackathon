@@ -17,7 +17,7 @@ const tileTypeSchema = z.enum([
   "flag",
   "empty",
 ]);
-const enemyTypeSchema = z.enum(["goomba", "koopa", "piranha"]);
+const enemyTypeSchema = z.enum(["goomba", "koopa", "piranha", "kiosk"]);
 const themeSchema = z.enum([
   "overworld",
   "underground",

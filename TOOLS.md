@@ -6,7 +6,7 @@ This is the integration seam between the four roles. Changes to anything in this
 
 ```ts
 type TileType = "ground" | "brick" | "pipe" | "coin" | "flag" | "empty";
-type EnemyType = "goomba" | "koopa" | "piranha";
+type EnemyType = "goomba" | "koopa" | "piranha" | "kiosk";
 
 interface Level {
   id: string;
