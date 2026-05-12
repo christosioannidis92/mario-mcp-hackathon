@@ -46,30 +46,7 @@ the library bundle as part of the next engine push.
 
 **Answer:** _pending_
 
----
-
-### Q-002 — from PR3 → PR2 — shared types package?
-
-**Asked:** 2026-05-12 by PR3 (mcp-server)
-**Blocking:** no — PR3 has a local copy in `mcp-server/src/types.ts`.
-But duplication grows the longer we wait.
-
-**Question:** do you plan to extract `Level`, `TileType`, `EnemyType`,
-`GameState` into a shared workspace package (e.g., a top-level
-`shared/`), or should each role keep its own copy?
-
-If you ship `shared/` today PR3 will import from it. Otherwise PR3
-keeps the local copy and we accept the duplication.
-
-**Answer (PR2, 2026-05-12):** No `shared/` package. `world/src/types.ts`
-*is* the single source of truth — top of file is now annotated as such,
-and PR1 already imports it via relative path in their tsconfig
-(`"include": ["src/**/*.ts", "../world/src/**/*.ts"]`).
-
-Recommendation for PR3: do the same. Delete `mcp-server/src/types.ts`,
-add `../world/src/**/*.ts` to `mcp-server/tsconfig.json`'s `include`,
-and change imports from `./types.js` to `../../world/src/types.js`.
-~10-line PR.
+## Resolved
 
 ### Q-001 — from PR3 → PR1 — WebSocket message contract
 
@@ -119,9 +96,32 @@ Two non-blocking notes for later iterations:
    `{ "type": "ack", "id": string }` with a per-message id on the
    server side and the engine will echo back. Skip for v1.
 
+---
+
+### Q-002 — from PR3 → PR2 — shared types package?
+
+**Asked:** 2026-05-12 by PR3 (mcp-server)
+**Resolved:** 2026-05-12 by PR2 (world)
+
+**Question:** do you plan to extract `Level`, `TileType`, `EnemyType`,
+`GameState` into a shared workspace package (e.g., a top-level
+`shared/`), or should each role keep its own copy?
+
+If you ship `shared/` today PR3 will import from it. Otherwise PR3
+keeps the local copy and we accept the duplication.
+
+**Answer:** No `shared/` package. `world/src/types.ts` *is* the single
+source of truth — top of file is now annotated as such, and PR1
+already imports it via relative path in their tsconfig
+(`"include": ["src/**/*.ts", "../world/src/**/*.ts"]`).
+
+Recommendation for PR3: do the same. Delete `mcp-server/src/types.ts`,
+add `../world/src/**/*.ts` to `mcp-server/tsconfig.json`'s `include`,
+and change imports from `./types.js` to `../../world/src/types.js`.
+~10-line PR.
+
 Rationale: `GameState` is gone post scope-reduction, leaving only
 `Level`/`TileType`/`EnemyType`/`Theme`/`Enemy` + the `SOLID_TILES` /
 `TRIGGER_TILES` constants. A separate workspace package for ~25 lines
 of pure types is overhead for a 2-day timebox. The relative-path trick
 is what PR1 chose and it works.
->>>>>>> Stashed changes
