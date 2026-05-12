@@ -1,11 +1,14 @@
 import type { Level } from "./types";
 import type { AssetBundle } from "./assets";
-import { CANVAS_W, CANVAS_H, DEATH_FREEZE_S } from "./constants";
+import {
+  CANVAS_W, CANVAS_H, GRAVITY, MAX_FALL_V,
+  STOMP_BOUNCE_V, DEATH_JUMP_V, DEATH_TIMEOUT_S, TILE_SIZE, MAX_JUMPS,
+} from "./constants";
 import { startLoop, type StopFn } from "./loop";
 import { createInput, type Input } from "./input";
 import { createPlayer, createEnemies, type Player, type RuntimeEnemy } from "./entities";
 import { createCamera, followCamera, snapCamera, type Camera } from "./camera";
-import { stepPlayer, stepEnemies, checkTriggers, checkDeath, checkEnemyHit } from "./physics";
+import { stepPlayer, stepEnemies, checkTriggers, checkDeath, processEnemyContact } from "./physics";
 import { render, type GameState } from "./render";
 
 export { preloadAssets } from "./assets";
@@ -94,14 +97,40 @@ export class Game {
       followCamera(this.camera, this.player, this.level);
 
       const trigger = checkTriggers(this.player, this.level);
-      if (trigger === "flag") this.state = "WON";
-      else if (checkEnemyHit(this.player, this.enemies)) this.state = "DEAD";
-      else if (checkDeath(this.player, this.level)) this.state = "DEAD";
+      if (trigger === "flag") {
+        this.state = "WON";
+      } else {
+        const contact = processEnemyContact(this.player, this.enemies);
+        if (contact === "stomp") {
+          this.player.vy = -STOMP_BOUNCE_V;
+          this.player.jumpsLeft = MAX_JUMPS;  // refill so stomp chains keep working
+        } else if (contact === "hit") {
+          this.killPlayer();
+        } else if (checkDeath(this.player, this.level)) {
+          // Fell off the bottom — no pop, just transition to DEAD (already falling).
+          this.state = "DEAD";
+          this.deathTimer = 0;
+        }
+      }
     } else if (this.state === "DEAD") {
+      // Death animation: gravity-only physics, no input, no collisions.
+      // Player jumps up (vy was set negative on kill) then falls past the floor.
+      this.player.vy += GRAVITY * dt;
+      if (this.player.vy > MAX_FALL_V) this.player.vy = MAX_FALL_V;
+      this.player.y += this.player.vy * dt;
       this.deathTimer += dt;
-      if (this.deathTimer >= DEATH_FREEZE_S) this.reset();
+      const offScreen = this.player.y > this.level.height * TILE_SIZE + 200;
+      if (offScreen || this.deathTimer >= DEATH_TIMEOUT_S) this.reset();
     }
     // WON freezes until R; that's handled by resetPressed above.
+  }
+
+  private killPlayer(): void {
+    if (!this.player) return;
+    this.state = "DEAD";
+    this.player.vx = 0;
+    this.player.vy = -DEATH_JUMP_V;
+    this.deathTimer = 0;
   }
 
   private draw(): void {

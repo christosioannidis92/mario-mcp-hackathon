@@ -68,27 +68,26 @@ export function render(
     }
   }
 
-  // 3. Enemies (runtime state — pixel positions, mirrored by facing)
+  // 3. Enemies (runtime state — pixel positions, per-type size, mirrored by facing)
   for (const e of enemies) {
     if (!e.alive) continue;
-    if (e.x + TILE_SIZE < camera.x || e.x > camera.x + CANVAS_W) continue;
+    if (e.x + e.w < camera.x || e.x > camera.x + CANVAS_W) continue;
     const sx = Math.floor(e.x - camera.x);
     const sy = Math.floor(e.y - camera.y);
     const img = assets.enemies?.[e.type];
     if (img) {
-      // Flip sprite to match walking direction (vx < 0 → face left)
       if (e.vx < 0) {
         ctx.save();
-        ctx.translate(sx + TILE_SIZE, sy);
+        ctx.translate(sx + e.w, sy);
         ctx.scale(-1, 1);
-        ctx.drawImage(img, 0, 0, TILE_SIZE, TILE_SIZE);
+        ctx.drawImage(img, 0, 0, e.w, e.h);
         ctx.restore();
       } else {
-        ctx.drawImage(img, sx, sy, TILE_SIZE, TILE_SIZE);
+        ctx.drawImage(img, sx, sy, e.w, e.h);
       }
     } else {
       ctx.fillStyle = ENEMY_COLOR[e.type];
-      ctx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
+      ctx.fillRect(sx, sy, e.w, e.h);
     }
   }
 

@@ -84,8 +84,12 @@
     }
     #game {
       background: var(--sky);
-      max-width: 100%;
-      height: auto;
+      /* Engine sets inline width/height (e.g. 800px); override so the canvas
+         fills the left pane and scales up, with pixel-art crispness. */
+      width: 100% !important;
+      height: auto !important;
+      max-width: 1200px;
+      max-height: calc(100vh - 140px);
       image-rendering: pixelated;
       image-rendering: crisp-edges;
       border: 1px solid var(--border);
@@ -279,8 +283,10 @@
   </footer>
 
   <!-- Engine library bundle. Rebuild with `cd engine && npm run build:lib`.
-       Exposes window.TileJumper = { Game, Bridge, preloadAssets }. -->
-  <script src="../engine/lib/engine.iife.js"></script>
+       Exposes window.TileJumper = { Game, Bridge, preloadAssets }.
+       Query param busts cache so a fresh bundle is always picked up — bump
+       it whenever you rebuild. -->
+  <script src="../engine/lib/engine.iife.js?v=4"></script>
 
   <script>
     const TILE = 32;

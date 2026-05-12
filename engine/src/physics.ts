@@ -2,12 +2,14 @@ import type { Level } from "./types";
 import { SOLID_TILES } from "./types";
 import type { Input } from "./input";
 import type { Player, RuntimeEnemy } from "./entities";
+import { ENEMY_STOMPABLE } from "./entities";
 import {
   TILE_SIZE,
   GRAVITY, MAX_FALL_V,
   RUN_SPEED, RUN_ACCEL, RUN_FRICTION,
   JUMP_V0, JUMP_CUT_V,
   COYOTE_MS, JUMP_BUFFER_MS,
+  MAX_JUMPS,
 } from "./constants";
 
 export type Trigger = "flag" | "coin" | null;
@@ -32,14 +34,9 @@ export function stepPlayer(p: Player, input: Input, level: Level, dt: number): v
   p.vy += GRAVITY * dt;
   if (p.vy > MAX_FALL_V) p.vy = MAX_FALL_V;
 
-  // --- Jump press: instant if grounded or in coyote window, else buffered ---
+  // --- Jump press: consume one of jumpsLeft; if none, buffer for landing. ---
   if (input.jumpPressed) {
-    if (p.onGround || p.coyoteMs > 0) {
-      p.vy = -JUMP_V0;
-      p.onGround = false;
-      p.coyoteMs = 0;
-      p.jumpBufferMs = 0;
-    } else {
+    if (!tryJump(p)) {
       p.jumpBufferMs = JUMP_BUFFER_MS;
     }
   } else {
@@ -69,10 +66,19 @@ export function stepPlayer(p: Player, input: Input, level: Level, dt: number): v
 
   // --- Buffered jump consumed on landing ---
   if (p.onGround && p.jumpBufferMs > 0) {
-    p.vy = -JUMP_V0;
-    p.onGround = false;
-    p.jumpBufferMs = 0;
+    tryJump(p);
   }
+}
+
+// Returns true if the player had a jump available and used it.
+function tryJump(p: Player): boolean {
+  if (p.jumpsLeft <= 0) return false;
+  p.vy = -JUMP_V0;
+  p.onGround = false;
+  p.coyoteMs = 0;
+  p.jumpBufferMs = 0;
+  p.jumpsLeft -= 1;
+  return true;
 }
 
 // --- Triggers (flag wins; coin is a no-op in v1) ---
@@ -94,20 +100,32 @@ export function checkTriggers(p: Player, level: Level): Trigger {
   return null;
 }
 
-// --- Enemy contact (runtime AABBs, one tile each) ---
-export function checkEnemyHit(p: Player, enemies: RuntimeEnemy[]): boolean {
+// --- Enemy contact. Returns "stomp" (enemy killed, player should bounce),
+//     "hit" (player should die), or null. ---
+export type ContactResult = "stomp" | "hit" | null;
+
+export function processEnemyContact(p: Player, enemies: RuntimeEnemy[]): ContactResult {
   for (const e of enemies) {
     if (!e.alive) continue;
-    if (
-      p.x < e.x + TILE_SIZE &&
+    const overlap =
+      p.x < e.x + e.w &&
       p.x + p.w > e.x &&
-      p.y < e.y + TILE_SIZE &&
-      p.y + p.h > e.y
-    ) {
-      return true;
+      p.y < e.y + e.h &&
+      p.y + p.h > e.y;
+    if (!overlap) continue;
+
+    // Stomp if: falling AND player's bottom is in the top quarter of the
+    // enemy's AABB (i.e., we came down on its head). Tolerance is generous
+    // so a fast fall still registers as a stomp.
+    const stompable = ENEMY_STOMPABLE[e.type];
+    const cameFromAbove = p.vy > 0 && p.y + p.h <= e.y + e.h * 0.5;
+    if (stompable && cameFromAbove) {
+      e.alive = false;
+      return "stomp";
     }
+    return "hit";
   }
-  return false;
+  return null;
 }
 
 // --- Enemy walking. Horizontal only. Flips on wall collision or ledge edge. ---
@@ -116,15 +134,17 @@ export function stepEnemies(enemies: RuntimeEnemy[], level: Level, dt: number): 
     if (!e.alive || e.vx === 0) continue;
     const dir = Math.sign(e.vx);
     // Probe one pixel beyond the leading edge.
-    const probePx = dir > 0 ? e.x + TILE_SIZE : e.x - 1;
+    const probePx = dir > 0 ? e.x + e.w : e.x - 1;
     const tileX = Math.floor(probePx / TILE_SIZE);
-    const tileY = Math.floor((e.y + TILE_SIZE / 2) / TILE_SIZE);
+    // For wall check, probe at enemy's mid-height.
+    const midY = Math.floor((e.y + e.h / 2) / TILE_SIZE);
+    // For ledge check, probe one tile below the enemy's bottom.
+    const bottomY = Math.floor((e.y + e.h - 1) / TILE_SIZE);
 
-    const aheadTile = level.tiles[tileY]?.[tileX];
+    const aheadTile = level.tiles[midY]?.[tileX];
     const wallBlocked = aheadTile !== undefined && SOLID_TILES.has(aheadTile);
 
-    // Ledge check: tile immediately below the probe position.
-    const belowY = tileY + 1;
+    const belowY = bottomY + 1;
     let ledgeAhead: boolean;
     if (belowY >= level.height) {
       ledgeAhead = true;
@@ -184,6 +204,7 @@ function resolveY(p: Player, level: Level): void {
     for (const t of tiles) if (t.y < minTy) minTy = t.y;
     p.y = minTy * TILE_SIZE - p.h;
     p.onGround = true;
+    p.jumpsLeft = MAX_JUMPS;  // refill on landing
   } else {
     let maxTy = -Infinity;
     for (const t of tiles) if (t.y > maxTy) maxTy = t.y;
