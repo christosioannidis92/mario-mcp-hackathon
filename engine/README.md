@@ -7,7 +7,7 @@ Game loop, renderer, physics, input.
 - Render a level from a `Level` JSON (see [../TOOLS.md](../TOOLS.md))
 - Tile + sprite rendering on Canvas (32px tiles suggested)
 - Physics: gravity, collision, jumping, running
-- Input queue — keyboard *and* programmatic input go through the same path
+- Keyboard input: arrow keys / WASD to move, space to jump, R to reset
 - Camera follow
 - Win/lose conditions (touch flag = win, fall off / enemy contact = lose)
 
@@ -16,13 +16,12 @@ Game loop, renderer, physics, input.
 ```ts
 class Game {
   constructor(canvas: HTMLCanvasElement);
-  loadLevel(level: Level): void;
-  getState(): GameState;
-  pressButton(button: "left" | "right" | "jump" | "run", durationMs: number): void;
-  reset(): void;
-  onTick(cb: (state: GameState) => void): void;  // called every frame
+  loadLevel(level: Level): void;  // called by the WebSocket bridge on every Claude edit
+  reset(): void;                  // also bound to keyboard 'R'
 }
 ```
+
+Keyboard input is handled internally — the bridge never injects player input.
 
 ## First deliverable (hour 4)
 

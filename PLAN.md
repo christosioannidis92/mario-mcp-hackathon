@@ -5,7 +5,7 @@
 ### Person 1 — Engine Core (`engine/`)
 - Canvas renderer, game loop, tile/sprite rendering
 - Physics: gravity, collision, jumping
-- Input queue (so MCP and keyboard go through the same path)
+- Keyboard input (arrow keys / WASD, space to jump, R to reset)
 - Camera follow
 - Exposes the `Game` interface from [TOOLS.md](TOOLS.md)
 - **First deliverable (hour 4)**: renders `fixtures/sample-level.json` with a stationary player sprite
@@ -58,7 +58,7 @@
 ## Day 2
 
 **Morning**
-- P1: camera, death/respawn, win condition (touch flag)
+- P1: death/respawn, win condition (touch flag), polish player controls
 - P2: `generate_level` — compose chunks into a coherent level
 - P3: prompt engineering. Give Claude examples of good levels in the system prompt.
 - P4: more sounds, particles, title screen
@@ -71,16 +71,15 @@
 - Record the backup video
 - Write a one-page judging handout
 
-## Demo script (3 minutes)
+## Demo script (2-3 minutes)
 
-1. **(0:00)** Demo page open. Empty level. Player sprite stands there.
+1. **(0:00)** Demo page open. Empty level. Player sprite stands at start.
 2. **(0:15)** Type into Claude: *"Design a level themed spooky castle, medium difficulty, 60 tiles long."* → tiles + enemies appear live in the browser.
-3. **(0:45)** Operator plays it for ~10 seconds. Dies on a Goomba.
-4. **(1:15)** *"Claude, you play it."* → Claude calls `get_game_state` + `press_button` in a loop. Audience sees the level JSON updating in real time.
-5. **(2:15)** *"That was too easy. Add more enemies and a gap near the end."* → Claude calls `spawn_enemy` + `place_tile`.
-6. **(2:45)** Claude replays. Wraps up.
+3. **(0:45)** Operator picks up the keyboard and plays through it. Might die on a Goomba, that's fine.
+4. **(1:30)** *"Claude, that was too easy. Add more enemies and a gap near the end."* → Claude calls `spawn_enemy` + `place_tile`. Level updates live; operator hits R to restart.
+5. **(2:15)** Operator plays the harder version. Reaches the flag. Wraps up.
 
-If you can land beats 1-3 reliably you have a hackathon-winner. Beats 4-6 are stretch.
+If you can land beats 1-3 reliably you have a hackathon-winner. Beats 4-5 are stretch.
 
 ## Risk register
 
@@ -94,8 +93,9 @@ If you can land beats 1-3 reliably you have a hackathon-winner. Beats 4-6 are st
 
 ## Definition of done
 
-- [ ] Claude Desktop can call all authoring tools and see results live
-- [ ] Claude can play a level autonomously to completion (with some assistance acceptable)
+- [ ] Claude Desktop can call all authoring tools and see results live in the browser
+- [ ] A human can play a Claude-generated level from start to flag using the keyboard
+- [ ] Mid-play edits ("add a gap") show up after a reset without restarting the server
 - [ ] Demo runs end-to-end in under 3 minutes without crashing
 - [ ] README explains how to run it locally
 - [ ] Backup video recorded

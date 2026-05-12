@@ -21,22 +21,6 @@ interface Level {
 
 All coordinates are **tile units**, not pixels. The renderer converts (suggest 32px tiles).
 
-## Game state schema
-
-What `get_game_state` returns to Claude when it's playing:
-
-```ts
-interface GameState {
-  player: { x: number; y: number; vx: number; vy: number; grounded: boolean; alive: boolean };
-  enemies: { id: string; x: number; y: number; type: EnemyType; alive: boolean }[];
-  camera: { x: number; y: number };
-  score: number;
-  timeLeft: number;
-  levelId: string;
-  finished: boolean;
-}
-```
-
 ## Tools
 
 ### Authoring
@@ -47,15 +31,7 @@ interface GameState {
 | `place_tile` | `level_id`, `x`, `y`, `type` | `ok` | Errors if out of bounds |
 | `spawn_enemy` | `level_id`, `x`, `y`, `type` | `enemy_id` | |
 | `set_player_start` | `level_id`, `x`, `y` | `ok` | |
-| `load_level` | `level_id` | `ok` | Tells the running game to switch level |
-
-### Playing
-
-| Tool | Inputs | Returns | Notes |
-|---|---|---|---|
-| `get_game_state` | — | `GameState` | Snapshot at call time |
-| `press_button` | `button` ("left" \| "right" \| "jump" \| "run"), `duration_ms` | `ok` | Queued, applied next frame |
-| `reset_level` | — | `ok` | Restart current level |
+| `load_level` | `level_id` | `ok` | Tells the running game to switch to this level |
 
 ### Inspection
 
@@ -66,15 +42,12 @@ interface GameState {
 
 ## Engine API (internal, between Persons 1 & 2)
 
-The browser-side `Game` object Person 1 exposes. Person 2's tool implementations call into this via the WebSocket bridge:
+The browser-side `Game` object Person 1 exposes. The WebSocket bridge calls `loadLevel` whenever Claude authors changes; the engine handles keyboard input and physics on its own.
 
 ```ts
 interface Game {
-  loadLevel(level: Level): void;
-  getState(): GameState;
-  pressButton(button: string, durationMs: number): void;
-  reset(): void;
-  onTick(cb: (state: GameState) => void): void;
+  loadLevel(level: Level): void;   // called by the bridge on every edit
+  reset(): void;                   // restart current level (keyboard 'R')
 }
 ```
 

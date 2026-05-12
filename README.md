@@ -1,15 +1,14 @@
 # Mario MCP Hackathon
 
-A 2D platformer where an **MCP server is the level designer and player AI**. Claude generates levels live, then plays them.
+A 2D platformer where an **MCP server is the live level designer**. Claude generates and edits levels on demand; humans play them.
 
 ## The angle
 
-The MCP server exposes tools that both *author* and *play* the game:
+The MCP server exposes tools that *author* the game world while it's running:
 
-- **Authoring**: `generate_level`, `place_tile`, `spawn_enemy`
-- **Playing**: `get_game_state`, `press_button`, `reset_level`
+- `generate_level`, `place_tile`, `spawn_enemy`, `set_player_start`, `load_level`
 
-This gives a single demo arc that's hard to forget: empty level → Claude designs it → Claude plays through it → "make it harder" → Claude adds enemies.
+Demo arc: empty level → Claude designs it → a human plays it → "make it harder" → Claude adds enemies and a gap → human replays.
 
 ## Stack
 
@@ -21,8 +20,8 @@ This gives a single demo arc that's hard to forget: empty level → Claude desig
 ## Repo layout
 
 ```
-ai-hackathon/
-├── engine/              # Person 1 - game loop, physics, renderer
+mario-mcp-hackathon/
+├── engine/              # Person 1 - game loop, physics, renderer, keyboard input
 ├── world/               # Person 2 - level schema, enemies, tool implementations
 ├── mcp-server/          # Person 3 - MCP protocol server + browser bridge
 ├── demo/                # Person 4 - split-screen demo page, assets, demo script
