@@ -124,6 +124,18 @@
     }
     footer .ok { color: #5fd17a; }
     footer .err { color: #ff6b6b; }
+
+    header select, header button {
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 12px;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    header select:hover, header button:hover { border-color: var(--accent); }
   </style>
 </head>
 <body>
@@ -131,6 +143,8 @@
     <h1>Tile Jumper</h1>
     <span class="tag">Claude is the level designer</span>
     <span class="spacer"></span>
+    <select id="level-select" title="Load a fixture level"></select>
+    <button id="sound-test" title="Play a test sound">♪ test</button>
     <span class="badge" id="level-id-badge">no level</span>
     <span class="badge" id="conn-badge">bridge: offline</span>
   </header>
@@ -192,6 +206,93 @@
       piranha: "#d94a4a",
     };
 
+    // Drop matching PNGs into demo/assets/ and they'll be used automatically.
+    // Missing images fall back to colored rects, so demo never breaks.
+    const ASSET_PATHS = {
+      tiles: {
+        ground: "assets/tiles/ground.png",
+        brick:  "assets/tiles/brick.png",
+        pipe:   "assets/tiles/pipe.png",
+        coin:   "assets/tiles/coin.png",
+        flag:   "assets/tiles/flag.png",
+      },
+      enemies: {
+        goomba:  "assets/enemies/goomba.png",
+        koopa:   "assets/enemies/koopa.png",
+        piranha: "assets/enemies/piranha.png",
+      },
+      player: "assets/player/player.png",
+    };
+
+    const sprites = { tiles: {}, enemies: {}, player: null, loaded: 0, attempted: 0 };
+
+    // Sounds: drop .ogg or .mp3 files matching these paths; missing files no-op.
+    const SOUND_PATHS = {
+      jump:  "assets/sounds/jump.ogg",
+      coin:  "assets/sounds/coin.ogg",
+      stomp: "assets/sounds/stomp.ogg",
+      death: "assets/sounds/death.ogg",
+      win:   "assets/sounds/win.ogg",
+    };
+    const sounds = { clips: {}, loaded: 0, attempted: 0 };
+
+    function loadSound(src) {
+      return new Promise((resolve) => {
+        const audio = new Audio();
+        audio.preload = "auto";
+        audio.oncanplaythrough = () => resolve(audio);
+        audio.onerror = () => resolve(null);
+        audio.src = src;
+      });
+    }
+
+    async function loadSounds() {
+      const jobs = [];
+      for (const [key, path] of Object.entries(SOUND_PATHS)) {
+        sounds.attempted++;
+        jobs.push(loadSound(path).then((a) => { if (a) { sounds.clips[key] = a; sounds.loaded++; } }));
+      }
+      await Promise.all(jobs);
+    }
+
+    // Public API the engine will eventually call: window.demoSound("jump")
+    window.demoSound = function (key) {
+      const clip = sounds.clips[key];
+      if (!clip) return;
+      const c = clip.cloneNode();
+      c.play().catch(() => {}); // browsers block autoplay until user gesture; ignore
+    };
+
+    // Fixtures available to the demo. Add new entries here as Person 2 / Claude
+    // generate them; they show up in the header dropdown.
+    const FIXTURES = [
+      { id: "sample-1", path: "../fixtures/sample-level.json", label: "sample-1 (overworld)" },
+    ];
+
+    function loadImage(src) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(null);
+        img.src = src;
+      });
+    }
+
+    async function loadSprites() {
+      const jobs = [];
+      for (const [key, path] of Object.entries(ASSET_PATHS.tiles)) {
+        sprites.attempted++;
+        jobs.push(loadImage(path).then((img) => { if (img) { sprites.tiles[key] = img; sprites.loaded++; } }));
+      }
+      for (const [key, path] of Object.entries(ASSET_PATHS.enemies)) {
+        sprites.attempted++;
+        jobs.push(loadImage(path).then((img) => { if (img) { sprites.enemies[key] = img; sprites.loaded++; } }));
+      }
+      sprites.attempted++;
+      jobs.push(loadImage(ASSET_PATHS.player).then((img) => { if (img) { sprites.player = img; sprites.loaded++; } }));
+      await Promise.all(jobs);
+    }
+
     function renderLevel(ctx, level) {
       const w = level.width * TILE;
       const h = level.height * TILE;
@@ -226,6 +327,9 @@
 
     function drawTile(ctx, x, y, type, color) {
       const px = x * TILE, py = y * TILE;
+      const img = sprites.tiles[type];
+      if (img) { ctx.drawImage(img, px, py, TILE, TILE); return; }
+
       ctx.fillStyle = color;
       if (type === "coin") {
         ctx.beginPath();
@@ -258,6 +362,9 @@
 
     function drawEnemy(ctx, e) {
       const px = e.x * TILE, py = e.y * TILE;
+      const img = sprites.enemies[e.type];
+      if (img) { ctx.drawImage(img, px, py, TILE, TILE); return; }
+
       ctx.fillStyle = ENEMY_COLORS[e.type] ?? "#888";
       ctx.beginPath();
       ctx.arc(px + TILE / 2, py + TILE / 2, TILE / 2 - 3, 0, Math.PI * 2);
@@ -270,6 +377,8 @@
     function drawPlayer(ctx, start) {
       if (!start) return;
       const px = start.x * TILE, py = start.y * TILE;
+      if (sprites.player) { ctx.drawImage(sprites.player, px, py, TILE, TILE); return; }
+
       ctx.fillStyle = "#4a7bd9";
       ctx.fillRect(px + 4, py + 2, TILE - 8, TILE - 4);
       ctx.fillStyle = "#ffd9b0";
@@ -282,24 +391,67 @@
       el.className = kind ?? "";
     }
 
-    async function loadFixture() {
-      const canvas = document.getElementById("game");
-      const ctx = canvas.getContext("2d");
+    let canvasCtx = null;
+
+    async function loadAndRender(path) {
       try {
-        const res = await fetch("../fixtures/sample-level.json");
+        const res = await fetch(path);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const level = await res.json();
-        renderLevel(ctx, level);
+        renderLevel(canvasCtx, level);
         document.getElementById("json").textContent = JSON.stringify(level, null, 2);
         document.getElementById("level-id-badge").textContent = `level: ${level.id}`;
-        setStatus(`loaded ${level.id} (${level.width}×${level.height})`, "ok");
+        const spriteNote = sprites.loaded === 0
+          ? " · sprites: none (rects)"
+          : ` · sprites: ${sprites.loaded}/${sprites.attempted}`;
+        const soundNote = sounds.attempted === 0
+          ? ""
+          : ` · sounds: ${sounds.loaded}/${sounds.attempted}`;
+        setStatus(`loaded ${level.id} (${level.width}×${level.height})${spriteNote}${soundNote}`, "ok");
       } catch (err) {
-        setStatus(`failed to load fixture: ${err.message} — serve this folder over http (e.g. \`npx serve\`)`, "err");
+        setStatus(`failed to load ${path}: ${err.message} — serve over http (e.g. \`npx serve\`)`, "err");
         document.getElementById("json").textContent = String(err);
       }
     }
 
-    loadFixture();
+    function populateLevelSelect() {
+      const sel = document.getElementById("level-select");
+      sel.innerHTML = "";
+      for (const f of FIXTURES) {
+        const opt = document.createElement("option");
+        opt.value = f.path;
+        opt.textContent = f.label;
+        sel.appendChild(opt);
+      }
+      sel.addEventListener("change", (e) => loadAndRender(e.target.value));
+    }
+
+    function wireSoundTest() {
+      document.getElementById("sound-test").addEventListener("click", () => {
+        const keys = Object.keys(sounds.clips);
+        if (keys.length === 0) {
+          setStatus("no sounds loaded — drop .ogg/.mp3 files into assets/sounds/", "err");
+          return;
+        }
+        const key = keys[Math.floor(Math.random() * keys.length)];
+        window.demoSound(key);
+        setStatus(`played: ${key}`, "ok");
+      });
+    }
+
+    async function boot() {
+      const canvas = document.getElementById("game");
+      canvasCtx = canvas.getContext("2d");
+      canvasCtx.imageSmoothingEnabled = false;
+
+      populateLevelSelect();
+      wireSoundTest();
+
+      await Promise.all([loadSprites(), loadSounds()]);
+      await loadAndRender(FIXTURES[0].path);
+    }
+
+    boot();
   </script>
 </body>
 </html>
